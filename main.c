@@ -224,12 +224,19 @@ static bool DrawMenuButton(int x, int y, int width, int height,
 int main(void) {
   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Chess");
   SetTargetFPS(60);
+  SetExitKey(0); // Disable ESC closing the window
 
   LoadPiecesTexture();
   InitFloatingPieces();
   InitBoard();
 
   while (!WindowShouldClose()) {
+    // ESC returns to menu (does nothing on title screen)
+    if (IsKeyPressed(KEY_ESCAPE) && currentScreen != SCREEN_TITLE) {
+      currentScreen = SCREEN_TITLE;
+      continue;
+    }
+
     // Update and handle input based on current screen
     switch (currentScreen) {
     case SCREEN_TITLE:
@@ -249,14 +256,8 @@ int main(void) {
         if (IsKeyPressed(KEY_R)) {
           InitBoard();
         }
-        if (IsKeyPressed(KEY_ESCAPE)) {
-          currentScreen = SCREEN_TITLE;
-        }
       } else {
         HandleInput();
-        if (IsKeyPressed(KEY_ESCAPE)) {
-          currentScreen = SCREEN_TITLE;
-        }
       }
       break;
     }
@@ -1181,7 +1182,7 @@ static void DrawTitleScreen(void) {
   int buttonWidth = 200;
   int buttonHeight = 50;
   int buttonX = (WINDOW_WIDTH - buttonWidth) / 2;
-  int buttonY = 220;
+  int buttonY = 380;
 
   if (DrawMenuButton(buttonX, buttonY, buttonWidth, buttonHeight, "PLAY")) {
     InitBoard();
@@ -1261,7 +1262,5 @@ static void DrawOptionsScreen(void) {
  * Handle options screen input.
  */
 static void HandleOptionsInput(void) {
-  if (IsKeyPressed(KEY_ESCAPE)) {
-    currentScreen = SCREEN_TITLE;
-  }
+  // ESC is handled globally in main loop
 }
