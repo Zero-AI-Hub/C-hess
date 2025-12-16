@@ -47,10 +47,12 @@ extern int historyScrollOffset;
 void InitMoveHistory(void);
 
 /**
- * Record a move before it's executed.
- * Call this from MovePiece() before modifying the board.
+ * Record a move after it's executed.
+ * pieceType and color must be passed explicitly since the from-square is
+ * already empty.
  */
-void RecordMove(int fromRow, int fromCol, int toRow, int toCol, bool isCapture,
+void RecordMove(int fromRow, int fromCol, int toRow, int toCol,
+                PieceType pieceType, PieceColor color, bool isCapture,
                 bool isCastleKingside, bool isCastleQueenside, bool isEnPassant,
                 bool isPromotion, PieceType promotedTo);
 

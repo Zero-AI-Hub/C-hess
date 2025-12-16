@@ -240,8 +240,9 @@ void MovePiece(int toRow, int toCol) {
   }
 
   // Record the move for history
-  RecordMove(fromRow, fromCol, toRow, toCol, isCapture, isCastleKingside,
-             isCastleQueenside, isEnPassantCapture, false, PIECE_NONE);
+  RecordMove(fromRow, fromCol, toRow, toCol, piece.type, piece.color, isCapture,
+             isCastleKingside, isCastleQueenside, isEnPassantCapture, false,
+             PIECE_NONE);
 
   // Switch turns and update game state
   currentTurn = OPPONENT_COLOR(currentTurn);

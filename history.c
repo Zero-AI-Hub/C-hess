@@ -254,7 +254,8 @@ void GenerateMoveNotation(MoveRecord *move) {
 // MOVE RECORDING
 //==============================================================================
 
-void RecordMove(int fromRow, int fromCol, int toRow, int toCol, bool isCapture,
+void RecordMove(int fromRow, int fromCol, int toRow, int toCol,
+                PieceType pieceType, PieceColor color, bool isCapture,
                 bool isCastleKingside, bool isCastleQueenside, bool isEnPassant,
                 bool isPromotion, PieceType promotedTo) {
   if (moveCount >= MAX_MOVES)
@@ -266,9 +267,9 @@ void RecordMove(int fromRow, int fromCol, int toRow, int toCol, bool isCapture,
   move->fromCol = fromCol;
   move->toRow = toRow;
   move->toCol = toCol;
-  move->pieceType = board[fromRow][fromCol].type;
-  move->capturedType = board[toRow][toCol].type;
-  move->color = board[fromRow][fromCol].color;
+  move->pieceType = pieceType;
+  move->capturedType = PIECE_NONE; // Could be passed as param if needed
+  move->color = color;
   move->isCapture = isCapture;
   move->isCastleKingside = isCastleKingside;
   move->isCastleQueenside = isCastleQueenside;

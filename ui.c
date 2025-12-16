@@ -419,10 +419,11 @@ void HandlePromotion(void) {
       // Promote the piece
       board[promotionPos.row][promotionPos.col].type = options[i];
 
-      // Record the promotion move
+      // Record the promotion move (pawn promotion)
+      PieceColor pieceColor = board[promotionPos.row][promotionPos.col].color;
       RecordMove(promotionFromPos.row, promotionFromPos.col, promotionPos.row,
-                 promotionPos.col, promotionWasCapture, false, false, false,
-                 true, options[i]);
+                 promotionPos.col, PIECE_PAWN, pieceColor, promotionWasCapture,
+                 false, false, false, true, options[i]);
 
       // Switch turns and update game state
       currentTurn = OPPONENT_COLOR(currentTurn);
