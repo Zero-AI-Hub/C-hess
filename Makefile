@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -O2 -I./raylib/src
 LDFLAGS = -L./raylib/src -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
 TARGET = chess
-SRCS = main.c board.c moves.c check.c ui.c menu.c history.c
+SRCS = main.c board.c moves.c check.c ui.c menu.c history.c constants.c
 OBJS = $(SRCS:.c=.o)
 HEADERS = types.h board.h moves.h check.h ui.h menu.h history.h
 

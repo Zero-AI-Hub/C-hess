@@ -5,6 +5,7 @@
 
 #include "history.h"
 #include "board.h"
+#include "check.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -149,105 +150,8 @@ static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
   if (!patternValid)
     return false;
 
-  // Check if this move would leave the king in check
-  // Temporarily make the move
-  Piece movingPiece = board[fromRow][fromCol];
-  Piece capturedPiece = board[toRow][toCol];
-
-  board[toRow][toCol] = movingPiece;
-  board[fromRow][fromCol] = (Piece){PIECE_NONE, COLOR_NONE, false};
-
-  // Find the king and check if it's in check
-  bool inCheck = false;
-  for (int row = 0; row < BOARD_SIZE && !inCheck; row++) {
-    for (int col = 0; col < BOARD_SIZE && !inCheck; col++) {
-      if (board[row][col].type == PIECE_KING &&
-          board[row][col].color == color) {
-        // Check if this king position is attacked by any enemy piece
-        PieceColor enemy = (color == COLOR_WHITE) ? COLOR_BLACK : COLOR_WHITE;
-
-        // Check pawn attacks
-        int pawnDir = (enemy == COLOR_WHITE) ? 1 : -1;
-        for (int dc = -1; dc <= 1; dc += 2) {
-          int pr = row + pawnDir;
-          int pc = col + dc;
-          if (pr >= 0 && pr < BOARD_SIZE && pc >= 0 && pc < BOARD_SIZE &&
-              board[pr][pc].type == PIECE_PAWN &&
-              board[pr][pc].color == enemy) {
-            inCheck = true;
-          }
-        }
-
-        // Check knight attacks
-        for (int i = 0; i < 8 && !inCheck; i++) {
-          int nr = row + KNIGHT_MOVES[i][0];
-          int nc = col + KNIGHT_MOVES[i][1];
-          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE &&
-              board[nr][nc].type == PIECE_KNIGHT &&
-              board[nr][nc].color == enemy) {
-            inCheck = true;
-          }
-        }
-
-        // Check rook/queen attacks (straight lines)
-        for (int d = 0; d < 4 && !inCheck; d++) {
-          for (int i = 1; i < BOARD_SIZE; i++) {
-            int tr = row + i * ROOK_DIRECTIONS[d][0];
-            int tc = col + i * ROOK_DIRECTIONS[d][1];
-            if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE)
-              break;
-            if (board[tr][tc].type != PIECE_NONE) {
-              if (board[tr][tc].color == enemy &&
-                  (board[tr][tc].type == PIECE_ROOK ||
-                   board[tr][tc].type == PIECE_QUEEN)) {
-                inCheck = true;
-              }
-              break;
-            }
-          }
-        }
-
-        // Check bishop/queen attacks (diagonals)
-        for (int d = 0; d < 4 && !inCheck; d++) {
-          for (int i = 1; i < BOARD_SIZE; i++) {
-            int tr = row + i * BISHOP_DIRECTIONS[d][0];
-            int tc = col + i * BISHOP_DIRECTIONS[d][1];
-            if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE)
-              break;
-            if (board[tr][tc].type != PIECE_NONE) {
-              if (board[tr][tc].color == enemy &&
-                  (board[tr][tc].type == PIECE_BISHOP ||
-                   board[tr][tc].type == PIECE_QUEEN)) {
-                inCheck = true;
-              }
-              break;
-            }
-          }
-        }
-
-        // Check king attacks (adjacent squares)
-        for (int dr = -1; dr <= 1 && !inCheck; dr++) {
-          for (int dc = -1; dc <= 1 && !inCheck; dc++) {
-            if (dr == 0 && dc == 0)
-              continue;
-            int kr = row + dr;
-            int kc = col + dc;
-            if (kr >= 0 && kr < BOARD_SIZE && kc >= 0 && kc < BOARD_SIZE &&
-                board[kr][kc].type == PIECE_KING &&
-                board[kr][kc].color == enemy) {
-              inCheck = true;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Restore the board
-  board[fromRow][fromCol] = movingPiece;
-  board[toRow][toCol] = capturedPiece;
-
-  return !inCheck;
+  // Use WouldBeInCheck from check.c instead of duplicating check detection
+  return !WouldBeInCheck(fromRow, fromCol, toRow, toCol, color);
 }
 
 // Returns: 0 = no disambiguation, 1 = add file, 2 = add rank, 3 = add both

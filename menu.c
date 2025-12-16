@@ -121,29 +121,30 @@ void DrawTitleScreen(void) {
 
   // Title shadow
   const char *title = "CHESS";
-  int titleWidth = MeasureText(title, 80);
+  int titleWidth = MeasureText(title, FONT_SIZE_TITLE_LARGE);
   int titleX = (WINDOW_WIDTH - titleWidth) / 2;
-  int titleY = 80;
+  int titleY = FONT_SIZE_TITLE_LARGE;
 
-  DrawText(title, titleX + 4, titleY + 4, 80, COLOR_TITLE_SHADOW);
-  DrawText(title, titleX, titleY, 80, COLOR_TITLE_GOLD);
+  DrawText(title, titleX + 4, titleY + 4, FONT_SIZE_TITLE_LARGE,
+           COLOR_TITLE_SHADOW);
+  DrawText(title, titleX, titleY, FONT_SIZE_TITLE_LARGE, COLOR_TITLE_GOLD);
 
   // Decorative line under title
   DrawRectangle(titleX - 20, titleY + 90, titleWidth + 40, 4, COLOR_TITLE_GOLD);
 
   // Menu buttons
-  int buttonWidth = 200;
-  int buttonHeight = 50;
+  int buttonWidth = MENU_BUTTON_WIDTH;
+  int buttonHeight = MENU_BUTTON_HEIGHT;
   int buttonX = (WINDOW_WIDTH - buttonWidth) / 2;
-  int buttonY = 380;
+  int buttonY = MENU_BUTTON_Y_START;
 
   if (DrawMenuButton(buttonX, buttonY, buttonWidth, buttonHeight, "PLAY")) {
     InitBoard();
     currentScreen = SCREEN_GAME;
   }
 
-  if (DrawMenuButton(buttonX, buttonY + 70, buttonWidth, buttonHeight,
-                     "OPTIONS")) {
+  if (DrawMenuButton(buttonX, buttonY + MENU_BUTTON_Y_SPACING, buttonWidth,
+                     buttonHeight, "OPTIONS")) {
     currentScreen = SCREEN_OPTIONS;
   }
 

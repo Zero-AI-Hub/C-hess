@@ -20,7 +20,12 @@ Texture2D piecesTexture;
 // TEXTURE LOADING
 //==============================================================================
 
-void LoadPiecesTexture(void) { piecesTexture = LoadTexture("ChessPieces.png"); }
+void LoadPiecesTexture(void) {
+  piecesTexture = LoadTexture("ChessPieces.png");
+  if (piecesTexture.id == 0) {
+    TraceLog(LOG_ERROR, "Failed to load ChessPieces.png texture!");
+  }
+}
 
 void UnloadPiecesTexture(void) { UnloadTexture(piecesTexture); }
 

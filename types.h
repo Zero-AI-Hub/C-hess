@@ -48,25 +48,30 @@
 #define FONT_SIZE_MEDIUM 24
 #define FONT_SIZE_LARGE 32
 #define FONT_SIZE_TITLE 48
+#define FONT_SIZE_TITLE_LARGE 80
+#define MENU_BUTTON_WIDTH 200
+#define MENU_BUTTON_HEIGHT 50
+#define MENU_BUTTON_Y_START 380
+#define MENU_BUTTON_Y_SPACING 70
 
 //==============================================================================
-// COLOR PALETTE
+// COLOR PALETTE (defined in constants.c)
 //==============================================================================
 
-static const Color COLOR_LIGHT_SQUARE = {240, 217, 181, 255};
-static const Color COLOR_DARK_SQUARE = {181, 136, 99, 255};
-static const Color COLOR_SELECTED = {255, 255, 0, 100};
-static const Color COLOR_CHECK_HIGHLIGHT = {255, 0, 0, 150};
-static const Color COLOR_VALID_MOVE = {0, 255, 0, 80};
-static const Color COLOR_CAPTURE = {255, 0, 0, 80};
-static const Color COLOR_BACKGROUND = {40, 40, 40, 255};
-static const Color COLOR_OVERLAY_DARK = {0, 0, 0, 150};
-static const Color COLOR_OVERLAY_DARKER = {0, 0, 0, 180};
-static const Color COLOR_PANEL_BG = {60, 60, 60, 255};
-static const Color COLOR_BUTTON_BG = {100, 100, 100, 255};
-static const Color COLOR_BUTTON_HOVER = {130, 130, 130, 255};
-static const Color COLOR_TITLE_GOLD = {255, 215, 0, 255};
-static const Color COLOR_TITLE_SHADOW = {80, 60, 0, 255};
+extern const Color COLOR_LIGHT_SQUARE;
+extern const Color COLOR_DARK_SQUARE;
+extern const Color COLOR_SELECTED;
+extern const Color COLOR_CHECK_HIGHLIGHT;
+extern const Color COLOR_VALID_MOVE;
+extern const Color COLOR_CAPTURE;
+extern const Color COLOR_BACKGROUND;
+extern const Color COLOR_OVERLAY_DARK;
+extern const Color COLOR_OVERLAY_DARKER;
+extern const Color COLOR_PANEL_BG;
+extern const Color COLOR_BUTTON_BG;
+extern const Color COLOR_BUTTON_HOVER;
+extern const Color COLOR_TITLE_GOLD;
+extern const Color COLOR_TITLE_SHADOW;
 
 //==============================================================================
 // PIECE TYPES AND ENUMS
@@ -117,12 +122,11 @@ typedef struct {
 #define OPPONENT_COLOR(c) ((c) == COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE)
 
 //==============================================================================
-// MOVEMENT PATTERNS
+// MOVEMENT PATTERNS (defined in constants.c)
 //==============================================================================
 
-static const int ROOK_DIRECTIONS[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-static const int BISHOP_DIRECTIONS[4][2] = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
-static const int KNIGHT_MOVES[8][2] = {{-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
-                                       {1, -2},  {1, 2},  {2, -1},  {2, 1}};
+extern const int ROOK_DIRECTIONS[4][2];
+extern const int BISHOP_DIRECTIONS[4][2];
+extern const int KNIGHT_MOVES[8][2];
 
 #endif // TYPES_H

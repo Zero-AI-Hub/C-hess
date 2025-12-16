@@ -55,6 +55,17 @@ void InitBoard(void) {
   enPassantTarget = (Position){-1, -1};
   enPassantPawn = (Position){-1, -1};
   gameState = GAME_PLAYING;
+
+  // Reset drag state
+  isDragging = false;
+  dragStartPos = (Position){-1, -1};
+  dragOffset = (Vector2){0, 0};
+
+  // Reset promotion state
+  promotionPos = (Position){-1, -1};
+  promotionFromPos = (Position){-1, -1};
+  promotionWasCapture = false;
+
   InitMoveHistory();
 }
 
