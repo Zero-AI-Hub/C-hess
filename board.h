@@ -23,6 +23,8 @@ extern Position promotionPos;
 extern bool isDragging;
 extern Position dragStartPos;
 extern Vector2 dragOffset;
+extern Position promotionFromPos;
+extern bool promotionWasCapture;
 
 //==============================================================================
 // BOARD FUNCTIONS

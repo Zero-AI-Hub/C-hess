@@ -6,6 +6,7 @@
 #include "moves.h"
 #include "board.h"
 #include "check.h"
+#include "history.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -163,6 +164,28 @@ void MovePiece(int toRow, int toCol) {
   int fromCol = selectedPos.col;
   Piece piece = board[fromRow][fromCol];
 
+  // Determine move properties for history recording
+  bool isCapture = board[toRow][toCol].type != PIECE_NONE;
+  bool isCastleKingside = false;
+  bool isCastleQueenside = false;
+  bool isEnPassantCapture = false;
+
+  // Check for castling
+  if (piece.type == PIECE_KING && abs(toCol - fromCol) == 2) {
+    if (toCol > fromCol) {
+      isCastleKingside = true;
+    } else {
+      isCastleQueenside = true;
+    }
+  }
+
+  // Check for en passant
+  if (piece.type == PIECE_PAWN && toRow == enPassantTarget.row &&
+      toCol == enPassantTarget.col) {
+    isEnPassantCapture = true;
+    isCapture = true;
+  }
+
   // Save and reset en passant state
   Position oldEnPassantTarget = enPassantTarget;
   Position oldEnPassantPawn = enPassantPawn;
@@ -206,6 +229,9 @@ void MovePiece(int toRow, int toCol) {
   if (piece.type == PIECE_PAWN &&
       ((piece.color == COLOR_WHITE && toRow == 0) ||
        (piece.color == COLOR_BLACK && toRow == 7))) {
+    // Save move info for recording after promotion choice
+    promotionFromPos = (Position){fromRow, fromCol};
+    promotionWasCapture = isCapture;
     promotionPos = (Position){toRow, toCol};
     gameState = GAME_PROMOTING;
     selectedPos = (Position){-1, -1};
@@ -213,9 +239,17 @@ void MovePiece(int toRow, int toCol) {
     return;
   }
 
+  // Record the move for history
+  RecordMove(fromRow, fromCol, toRow, toCol, isCapture, isCastleKingside,
+             isCastleQueenside, isEnPassantCapture, false, PIECE_NONE);
+
   // Switch turns and update game state
   currentTurn = OPPONENT_COLOR(currentTurn);
   selectedPos = (Position){-1, -1};
   ClearValidMoves();
   UpdateGameState();
+
+  // Update move history with check/checkmate status
+  UpdateLastMoveStatus(gameState == GAME_CHECK || gameState == GAME_CHECKMATE,
+                       gameState == GAME_CHECKMATE);
 }

@@ -17,8 +17,17 @@
 #define TILE_SIZE 80
 #define BOARD_OFFSET_X 40
 #define BOARD_OFFSET_Y 40
-#define WINDOW_WIDTH (BOARD_SIZE * TILE_SIZE + BOARD_OFFSET_X * 2)
+#define HISTORY_PANEL_WIDTH 250
+#define WINDOW_WIDTH                                                           \
+  (BOARD_SIZE * TILE_SIZE + BOARD_OFFSET_X * 2 + HISTORY_PANEL_WIDTH)
 #define WINDOW_HEIGHT (BOARD_SIZE * TILE_SIZE + BOARD_OFFSET_Y * 2 + 60)
+
+//==============================================================================
+// MOVE HISTORY CONSTANTS
+//==============================================================================
+
+#define MAX_MOVES 256
+#define MOVE_NOTATION_LEN 12
 
 //==============================================================================
 // SPRITE CONFIGURATION

@@ -6,7 +6,9 @@
 #include "ui.h"
 #include "board.h"
 #include "check.h"
+#include "history.h"
 #include "moves.h"
+#include <stdio.h>
 
 //==============================================================================
 // GLOBAL TEXTURE
@@ -176,8 +178,93 @@ void DrawUI(void) {
            y, FONT_SIZE_MEDIUM, stateColor);
 
   if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
-    DrawText("Press R to restart", WINDOW_WIDTH - 180, y, FONT_SIZE_SMALL,
+    DrawText("Press R to restart",
+             BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE - 180, y, FONT_SIZE_SMALL,
              GRAY);
+  }
+}
+
+void DrawMoveHistory(void) {
+  // Panel position and dimensions
+  int panelX = BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE + 20;
+  int panelY = BOARD_OFFSET_Y;
+  int panelWidth = HISTORY_PANEL_WIDTH - 30;
+  int panelHeight = BOARD_SIZE * TILE_SIZE;
+
+  // Draw panel background
+  DrawRectangle(panelX, panelY, panelWidth, panelHeight, COLOR_PANEL_BG);
+  DrawRectangleLinesEx((Rectangle){panelX, panelY, panelWidth, panelHeight}, 2,
+                       WHITE);
+
+  // Draw title
+  const char *title = "Move History";
+  int titleWidth = MeasureText(title, FONT_SIZE_SMALL);
+  DrawText(title, panelX + (panelWidth - titleWidth) / 2, panelY + 10,
+           FONT_SIZE_SMALL, WHITE);
+
+  // Draw moves in PGN format
+  int lineHeight = 22;
+  int startY = panelY + 40;
+  int maxVisibleLines = (panelHeight - 50) / lineHeight;
+  int totalMoveCount = GetMoveCount();
+
+  // Calculate number of full moves (pairs)
+  int fullMoves = (totalMoveCount + 1) / 2;
+
+  // Auto-scroll to show latest moves
+  if (fullMoves > maxVisibleLines) {
+    historyScrollOffset = fullMoves - maxVisibleLines;
+  } else {
+    historyScrollOffset = 0;
+  }
+
+  // Draw visible moves
+  int visibleLine = 0;
+  for (int i = historyScrollOffset;
+       i < fullMoves && visibleLine < maxVisibleLines; i++) {
+    int y = startY + visibleLine * lineHeight;
+    char lineBuffer[64];
+
+    // Move number
+    int moveNum = i + 1;
+
+    // White's move (even indices: 0, 2, 4, ...)
+    int whiteIdx = i * 2;
+    const char *whiteMove =
+        (whiteIdx < totalMoveCount) ? moveHistory[whiteIdx].notation : "";
+
+    // Black's move (odd indices: 1, 3, 5, ...)
+    int blackIdx = i * 2 + 1;
+    const char *blackMove =
+        (blackIdx < totalMoveCount) ? moveHistory[blackIdx].notation : "";
+
+    // Format: "1. e4 e5" or "1. e4" if black hasn't moved
+    if (blackIdx < totalMoveCount) {
+      snprintf(lineBuffer, sizeof(lineBuffer), "%d. %s %s", moveNum, whiteMove,
+               blackMove);
+    } else {
+      snprintf(lineBuffer, sizeof(lineBuffer), "%d. %s", moveNum, whiteMove);
+    }
+
+    // Draw with alternating background for readability
+    if (visibleLine % 2 == 0) {
+      DrawRectangle(panelX + 5, y - 2, panelWidth - 10, lineHeight,
+                    (Color){50, 50, 50, 255});
+    }
+
+    DrawText(lineBuffer, panelX + 10, y, FONT_SIZE_SMALL, LIGHTGRAY);
+    visibleLine++;
+  }
+
+  // Draw scroll indicator if there are more moves
+  if (fullMoves > maxVisibleLines) {
+    int indicatorY = panelY + panelHeight - 20;
+    char scrollText[32];
+    snprintf(scrollText, sizeof(scrollText), "... %d moves total",
+             totalMoveCount);
+    int scrollWidth = MeasureText(scrollText, FONT_SIZE_SMALL - 4);
+    DrawText(scrollText, panelX + (panelWidth - scrollWidth) / 2, indicatorY,
+             FONT_SIZE_SMALL - 4, GRAY);
   }
 }
 
@@ -328,11 +415,25 @@ void HandlePromotion(void) {
 
     if (mouse.x >= x && mouse.x < x + TILE_SIZE && mouse.y >= y &&
         mouse.y < y + TILE_SIZE) {
+      // Promote the piece
       board[promotionPos.row][promotionPos.col].type = options[i];
+
+      // Record the promotion move
+      RecordMove(promotionFromPos.row, promotionFromPos.col, promotionPos.row,
+                 promotionPos.col, promotionWasCapture, false, false, false,
+                 true, options[i]);
+
+      // Switch turns and update game state
       currentTurn = OPPONENT_COLOR(currentTurn);
       gameState = GAME_PLAYING;
       promotionPos = (Position){-1, -1};
+      promotionFromPos = (Position){-1, -1};
       UpdateGameState();
+
+      // Update move history with check/checkmate status
+      UpdateLastMoveStatus(gameState == GAME_CHECK ||
+                               gameState == GAME_CHECKMATE,
+                           gameState == GAME_CHECKMATE);
       break;
     }
   }

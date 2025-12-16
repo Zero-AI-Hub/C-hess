@@ -58,6 +58,11 @@ void DrawPromotionUI(void);
  */
 void DrawGameOverScreen(void);
 
+/**
+ * Draw the move history panel on the right side of the board.
+ */
+void DrawMoveHistory(void);
+
 //==============================================================================
 // INPUT HANDLING
 //==============================================================================

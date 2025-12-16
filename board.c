@@ -4,6 +4,7 @@
  */
 
 #include "board.h"
+#include "history.h"
 #include <string.h>
 
 //==============================================================================
@@ -21,6 +22,10 @@ Position promotionPos = {-1, -1};
 bool isDragging = false;
 Position dragStartPos = {-1, -1};
 Vector2 dragOffset = {0, 0};
+
+// Promotion move tracking for history recording
+Position promotionFromPos = {-1, -1};
+bool promotionWasCapture = false;
 
 //==============================================================================
 // BOARD INITIALIZATION
@@ -50,6 +55,7 @@ void InitBoard(void) {
   enPassantTarget = (Position){-1, -1};
   enPassantPawn = (Position){-1, -1};
   gameState = GAME_PLAYING;
+  InitMoveHistory();
 }
 
 //==============================================================================

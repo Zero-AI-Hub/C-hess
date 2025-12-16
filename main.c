@@ -76,6 +76,7 @@ int main(void) {
       DrawValidMoves();
       DrawPieces();
       DrawUI();
+      DrawMoveHistory();
 
       if (gameState == GAME_PROMOTING) {
         DrawPromotionUI();
