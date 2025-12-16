@@ -1,0 +1,12 @@
+# Compiled binary
+chess
+
+# Raylib library (downloaded automatically)
+raylib/
+
+# Object files
+*.o
+
+# Editor files
+*.swp
+*~
