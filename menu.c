@@ -91,11 +91,16 @@ bool DrawMenuButton(int x, int y, int width, int height, const char *text) {
   DrawRectangle(x, y, width, height, bgColor);
   DrawRectangleLinesEx(rect, 2, WHITE);
 
-  // Centered text
-  int textWidth = MeasureText(text, FONT_SIZE_LARGE);
+  // Centered text with auto-sizing font
+  int fontSize = FONT_SIZE_LARGE;
+  int textWidth = MeasureText(text, fontSize);
+  while (textWidth > width - 16 && fontSize > 14) {
+    fontSize -= 2;
+    textWidth = MeasureText(text, fontSize);
+  }
   int textX = x + (width - textWidth) / 2;
-  int textY = y + (height - FONT_SIZE_LARGE) / 2;
-  DrawText(text, textX, textY, FONT_SIZE_LARGE, WHITE);
+  int textY = y + (height - fontSize) / 2;
+  DrawText(text, textX, textY, fontSize, WHITE);
 
   return clicked;
 }
@@ -323,9 +328,9 @@ void DrawClockSetupScreen(void) {
   // Darken background
   DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
 
-  // Panel - increased height to fit all elements
+  // Panel - tall enough to fit all elements with comfortable spacing
   int panelWidth = 450;
-  int panelHeight = 550;
+  int panelHeight = 620;
   int panelX = (WINDOW_WIDTH - panelWidth) / 2;
   int panelY = (WINDOW_HEIGHT - panelHeight) / 2;
 
@@ -418,9 +423,7 @@ void DrawClockSetupScreen(void) {
       DrawSlider(contentX, contentY, sliderWidth, incLabel,
                  clockConfig.incrementSeconds, 0, 30);
 
-  contentY += 60;
-
-  // Current selection display
+  // Current selection display - positioned with space above the button
   char timeStr[64];
   if (clockConfig.selectedType == CLOCK_NONE) {
     sprintf(timeStr, "No time limit");
@@ -439,13 +442,13 @@ void DrawClockSetupScreen(void) {
   }
   int timeStrWidth = MeasureText(timeStr, FONT_SIZE_MEDIUM);
   DrawText(timeStr, panelX + (panelWidth - timeStrWidth) / 2,
-           panelY + panelHeight - 90, FONT_SIZE_MEDIUM, COLOR_TITLE_GOLD);
+           panelY + panelHeight - 110, FONT_SIZE_MEDIUM, COLOR_TITLE_GOLD);
 
-  // Start Game button
+  // Start Game button - at the bottom with clear spacing from hint
   int startBtnWidth = 180;
   int startBtnHeight = 45;
   int startBtnX = panelX + (panelWidth - startBtnWidth) / 2;
-  int startBtnY = panelY + panelHeight - 55;
+  int startBtnY = panelY + panelHeight - 60;
 
   if (DrawMenuButton(startBtnX, startBtnY, startBtnWidth, startBtnHeight,
                      "START GAME")) {

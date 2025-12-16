@@ -224,12 +224,24 @@ void DrawMoveHistory(void) {
   // Calculate number of full moves (pairs)
   int fullMoves = (totalMoveCount + 1) / 2;
 
-  // Auto-scroll to show latest moves
-  if (fullMoves > maxVisibleLines) {
-    historyScrollOffset = fullMoves - maxVisibleLines;
-  } else {
-    historyScrollOffset = 0;
+  // Handle mouse wheel scrolling when hovering over the panel
+  Vector2 mouse = GetMousePosition();
+  Rectangle panelRect = {panelX, panelY, panelWidth, panelHeight};
+  if (CheckCollisionPointRec(mouse, panelRect)) {
+    float wheel = GetMouseWheelMove();
+    if (wheel != 0) {
+      historyScrollOffset -= (int)wheel;
+    }
   }
+
+  // Clamp scroll offset
+  int maxScroll = fullMoves - maxVisibleLines;
+  if (maxScroll < 0)
+    maxScroll = 0;
+  if (historyScrollOffset < 0)
+    historyScrollOffset = 0;
+  if (historyScrollOffset > maxScroll)
+    historyScrollOffset = maxScroll;
 
   // Draw visible moves
   int visibleLine = 0;
@@ -270,15 +282,29 @@ void DrawMoveHistory(void) {
     visibleLine++;
   }
 
-  // Draw scroll indicator if there are more moves
+  // Draw scroll indicators
   if (fullMoves > maxVisibleLines) {
-    int indicatorY = panelY + panelHeight - 20;
+    // Show up arrow if we can scroll up
+    if (historyScrollOffset > 0) {
+      DrawText("^", panelX + panelWidth - 20, panelY + 35, FONT_SIZE_SMALL,
+               GRAY);
+    }
+    // Show down arrow if we can scroll down
+    if (historyScrollOffset < maxScroll) {
+      DrawText("v", panelX + panelWidth - 20, panelY + panelHeight - 25,
+               FONT_SIZE_SMALL, GRAY);
+    }
+    // Show scroll position
     char scrollText[32];
-    snprintf(scrollText, sizeof(scrollText), "... %d moves total",
-             totalMoveCount);
+    snprintf(scrollText, sizeof(scrollText), "%d-%d/%d",
+             historyScrollOffset + 1,
+             historyScrollOffset + maxVisibleLines > fullMoves
+                 ? fullMoves
+                 : historyScrollOffset + maxVisibleLines,
+             fullMoves);
     int scrollWidth = MeasureText(scrollText, FONT_SIZE_SMALL - 4);
-    DrawText(scrollText, panelX + (panelWidth - scrollWidth) / 2, indicatorY,
-             FONT_SIZE_SMALL - 4, GRAY);
+    DrawText(scrollText, panelX + (panelWidth - scrollWidth) / 2,
+             panelY + panelHeight - 18, FONT_SIZE_SMALL - 4, GRAY);
   }
 }
 
