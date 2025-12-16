@@ -197,11 +197,12 @@ void DrawUI(void) {
 }
 
 void DrawMoveHistory(void) {
-  // Panel position and dimensions
+  // Panel position and dimensions - leave room for clocks at top and bottom
+  int clockSpace = IsClockEnabled() ? CLOCK_PANEL_HEIGHT + 10 : 0;
   int panelX = BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE + 20;
-  int panelY = BOARD_OFFSET_Y;
+  int panelY = BOARD_OFFSET_Y + clockSpace;
   int panelWidth = HISTORY_PANEL_WIDTH - 30;
-  int panelHeight = BOARD_SIZE * TILE_SIZE;
+  int panelHeight = BOARD_SIZE * TILE_SIZE - (2 * clockSpace);
 
   // Draw panel background
   DrawRectangle(panelX, panelY, panelWidth, panelHeight, COLOR_PANEL_BG);
@@ -286,15 +287,15 @@ void DrawClocks(void) {
     return;
   }
 
-  // Position clocks above the history panel
+  // Position clocks in the right panel area - above and below the history panel
   int clockX = BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE + 20;
   int clockWidth = HISTORY_PANEL_WIDTH - 30;
   int clockHeight = CLOCK_PANEL_HEIGHT;
 
-  // Black's clock at top (matching board orientation)
-  int blackClockY = BOARD_OFFSET_Y - clockHeight - 10;
-  // White's clock at bottom
-  int whiteClockY = BOARD_OFFSET_Y + BOARD_SIZE * TILE_SIZE + 10;
+  // Black's clock at top of the right panel area
+  int blackClockY = BOARD_OFFSET_Y;
+  // White's clock at bottom of the right panel area
+  int whiteClockY = BOARD_OFFSET_Y + BOARD_SIZE * TILE_SIZE - clockHeight;
 
   // Get time values
   float whiteTime = GetPlayerTime(COLOR_WHITE);

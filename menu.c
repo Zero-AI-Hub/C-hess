@@ -145,9 +145,12 @@ void DrawTitleScreen(void) {
     currentScreen = SCREEN_CLOCK_SETUP;
   }
 
-  if (DrawMenuButton(buttonX, buttonY + MENU_BUTTON_Y_SPACING, buttonWidth,
-                     buttonHeight, "OPTIONS")) {
-    currentScreen = SCREEN_OPTIONS;
+  // Only show options button if we're on title screen (not clock setup popup)
+  if (currentScreen == SCREEN_TITLE) {
+    if (DrawMenuButton(buttonX, buttonY + MENU_BUTTON_Y_SPACING, buttonWidth,
+                       buttonHeight, "OPTIONS")) {
+      currentScreen = SCREEN_OPTIONS;
+    }
   }
 
   // Footer text
@@ -249,7 +252,7 @@ static const char *clockTypeNames[] = {"None", "Sudden Death", "Fischer",
 static int selectedPreset = 5; // Default: 5+0
 static bool customMode = false;
 
-// Helper to draw a small button
+// Helper to draw a small button with auto-sizing text
 static bool DrawSmallButton(int x, int y, int width, int height,
                             const char *text, bool selected) {
   Vector2 mouse = GetMousePosition();
@@ -262,8 +265,14 @@ static bool DrawSmallButton(int x, int y, int width, int height,
   DrawRectangle(x, y, width, height, bgColor);
   DrawRectangleLinesEx(rect, 1, WHITE);
 
+  // Auto-size font to fit button width
   int fontSize = FONT_SIZE_SMALL;
   int textWidth = MeasureText(text, fontSize);
+  while (textWidth > width - 8 && fontSize > 10) {
+    fontSize -= 2;
+    textWidth = MeasureText(text, fontSize);
+  }
+
   DrawText(text, x + (width - textWidth) / 2, y + (height - fontSize) / 2,
            fontSize, selected ? BLACK : WHITE);
 
@@ -314,9 +323,9 @@ void DrawClockSetupScreen(void) {
   // Darken background
   DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
 
-  // Panel
+  // Panel - increased height to fit all elements
   int panelWidth = 450;
-  int panelHeight = 480;
+  int panelHeight = 550;
   int panelX = (WINDOW_WIDTH - panelWidth) / 2;
   int panelY = (WINDOW_HEIGHT - panelHeight) / 2;
 
