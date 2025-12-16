@@ -5,6 +5,7 @@
 
 #include "history.h"
 #include "board.h"
+#include <stdlib.h>
 #include <string.h>
 
 //==============================================================================
@@ -52,43 +53,137 @@ static char PieceToChar(PieceType type) {
   }
 }
 
-static bool NeedsDisambiguation(MoveRecord *move) {
-  // Check if another piece of the same type can move to the same square
+static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
+                                PieceType type) {
+  // Check if a piece of the given type at (fromRow, fromCol) can reach (toRow,
+  // toCol) This is a simplified check that verifies the move pattern is valid
+
+  int dRow = toRow - fromRow;
+  int dCol = toCol - fromCol;
+
+  switch (type) {
+  case PIECE_ROOK:
+    // Rook moves horizontally or vertically
+    if (dRow != 0 && dCol != 0)
+      return false;
+    // Check path is clear
+    {
+      int stepRow = (dRow == 0) ? 0 : (dRow > 0 ? 1 : -1);
+      int stepCol = (dCol == 0) ? 0 : (dCol > 0 ? 1 : -1);
+      int r = fromRow + stepRow;
+      int c = fromCol + stepCol;
+      while (r != toRow || c != toCol) {
+        if (board[r][c].type != PIECE_NONE)
+          return false;
+        r += stepRow;
+        c += stepCol;
+      }
+    }
+    return true;
+
+  case PIECE_KNIGHT:
+    // Knight moves in L-shape
+    return (abs(dRow) == 2 && abs(dCol) == 1) ||
+           (abs(dRow) == 1 && abs(dCol) == 2);
+
+  case PIECE_BISHOP:
+    // Bishop moves diagonally
+    if (abs(dRow) != abs(dCol))
+      return false;
+    // Check path is clear
+    {
+      int stepRow = (dRow > 0) ? 1 : -1;
+      int stepCol = (dCol > 0) ? 1 : -1;
+      int r = fromRow + stepRow;
+      int c = fromCol + stepCol;
+      while (r != toRow || c != toCol) {
+        if (board[r][c].type != PIECE_NONE)
+          return false;
+        r += stepRow;
+        c += stepCol;
+      }
+    }
+    return true;
+
+  case PIECE_QUEEN:
+    // Queen moves like rook or bishop
+    if (dRow == 0 || dCol == 0) {
+      // Rook-like move
+      int stepRow = (dRow == 0) ? 0 : (dRow > 0 ? 1 : -1);
+      int stepCol = (dCol == 0) ? 0 : (dCol > 0 ? 1 : -1);
+      int r = fromRow + stepRow;
+      int c = fromCol + stepCol;
+      while (r != toRow || c != toCol) {
+        if (board[r][c].type != PIECE_NONE)
+          return false;
+        r += stepRow;
+        c += stepCol;
+      }
+      return true;
+    } else if (abs(dRow) == abs(dCol)) {
+      // Bishop-like move
+      int stepRow = (dRow > 0) ? 1 : -1;
+      int stepCol = (dCol > 0) ? 1 : -1;
+      int r = fromRow + stepRow;
+      int c = fromCol + stepCol;
+      while (r != toRow || c != toCol) {
+        if (board[r][c].type != PIECE_NONE)
+          return false;
+        r += stepRow;
+        c += stepCol;
+      }
+      return true;
+    }
+    return false;
+
+  default:
+    return false;
+  }
+}
+
+// Returns: 0 = no disambiguation, 1 = add file, 2 = add rank, 3 = add both
+static int GetDisambiguationType(MoveRecord *move) {
   PieceType type = move->pieceType;
   PieceColor color = move->color;
 
   if (type == PIECE_PAWN || type == PIECE_KING) {
-    return false;
+    return 0;
   }
 
-  int count = 0;
-  int sameFile = 0;
-  int sameRank = 0;
+  bool needsFile = false;
+  bool needsRank = false;
 
   for (int row = 0; row < BOARD_SIZE; row++) {
     for (int col = 0; col < BOARD_SIZE; col++) {
+      // Skip the piece that made the move
       if (row == move->fromRow && col == move->fromCol)
         continue;
+
+      // Check if this is the same type of piece
       if (board[row][col].type == type && board[row][col].color == color) {
-        // This is another piece of the same type
-        // For simplicity, we check if it could potentially reach the target
-        // In a fully correct implementation, we'd need to verify the move is
-        // legal
-        count++;
-        if (col == move->fromCol)
-          sameFile++;
-        if (row == move->fromRow)
-          sameRank++;
+        // Check if this piece can reach the same target square
+        if (CanPieceReachSquare(row, col, move->toRow, move->toCol, type)) {
+          // Ambiguity exists - determine what disambiguation is needed
+          if (col == move->fromCol) {
+            // Same file - need rank
+            needsRank = true;
+          } else {
+            // Different file - need file
+            needsFile = true;
+          }
+        }
       }
     }
   }
 
-  // For pawns capturing, we always show the file
-  if (type == PIECE_PAWN && move->isCapture) {
-    return true;
+  if (needsFile && needsRank) {
+    return 3; // Need both
+  } else if (needsRank) {
+    return 2; // Need rank only
+  } else if (needsFile) {
+    return 1; // Need file only
   }
-
-  return count > 0;
+  return 0;
 }
 
 void GenerateMoveNotation(MoveRecord *move) {
@@ -114,9 +209,19 @@ void GenerateMoveNotation(MoveRecord *move) {
       if (move->isCapture) {
         notation[idx++] = ColToFile(move->fromCol);
       }
-    } else if (NeedsDisambiguation(move)) {
-      // Add file, or rank if same file, or both if needed
-      notation[idx++] = ColToFile(move->fromCol);
+    } else {
+      int disambig = GetDisambiguationType(move);
+      if (disambig == 3) {
+        // Both file and rank needed
+        notation[idx++] = ColToFile(move->fromCol);
+        notation[idx++] = RowToRank(move->fromRow);
+      } else if (disambig == 2) {
+        // Rank only
+        notation[idx++] = RowToRank(move->fromRow);
+      } else if (disambig == 1) {
+        // File only
+        notation[idx++] = ColToFile(move->fromCol);
+      }
     }
 
     // Capture symbol

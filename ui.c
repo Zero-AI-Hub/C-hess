@@ -238,10 +238,11 @@ void DrawMoveHistory(void) {
     const char *blackMove =
         (blackIdx < totalMoveCount) ? moveHistory[blackIdx].notation : "";
 
-    // Format: "1. e4 e5" or "1. e4" if black hasn't moved
+    // Format: "1. e4     e5" or "1. e4" if black hasn't moved
+    // Using %-8s for fixed width to improve spacing between moves
     if (blackIdx < totalMoveCount) {
-      snprintf(lineBuffer, sizeof(lineBuffer), "%d. %s %s", moveNum, whiteMove,
-               blackMove);
+      snprintf(lineBuffer, sizeof(lineBuffer), "%d. %-8s %s", moveNum,
+               whiteMove, blackMove);
     } else {
       snprintf(lineBuffer, sizeof(lineBuffer), "%d. %s", moveNum, whiteMove);
     }
