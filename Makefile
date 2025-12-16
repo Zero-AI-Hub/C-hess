@@ -5,17 +5,22 @@ CFLAGS = -Wall -Wextra -O2 -I./raylib/src
 LDFLAGS = -L./raylib/src -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
 TARGET = chess
-SRC = main.c
+SRCS = main.c board.c moves.c check.c ui.c menu.c
+OBJS = $(SRCS:.c=.o)
+HEADERS = types.h board.h moves.h check.h ui.h menu.h
 
 RAYLIB_DIR = raylib
 RAYLIB_LIB = $(RAYLIB_DIR)/src/libraylib.a
 
-.PHONY: all clean raylib clean-raylib
+.PHONY: all clean raylib clean-raylib clean-all
 
 all: raylib $(TARGET)
 
-$(TARGET): $(SRC) $(RAYLIB_LIB)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) $(RAYLIB_LIB) -lGL -lm -lpthread -ldl -lrt -lX11
+$(TARGET): $(OBJS) $(RAYLIB_LIB)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(RAYLIB_LIB) -lGL -lm -lpthread -ldl -lrt -lX11
+
+%.o: %.c $(HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 raylib: $(RAYLIB_LIB)
 
@@ -28,7 +33,7 @@ $(RAYLIB_LIB):
 	$(MAKE) -C $(RAYLIB_DIR)/src PLATFORM=PLATFORM_DESKTOP
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJS)
 
 clean-raylib:
 	rm -rf $(RAYLIB_DIR)

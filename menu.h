@@ -1,0 +1,56 @@
+/**
+ * Chess Game - Menu Screens
+ * Title screen and options menu.
+ */
+
+#ifndef MENU_H
+#define MENU_H
+
+#include "types.h"
+
+//==============================================================================
+// ANIMATION CONFIGURATION
+//==============================================================================
+
+#define MAX_FLOATING_PIECES 12
+
+//==============================================================================
+// MENU FUNCTIONS
+//==============================================================================
+
+/**
+ * Initialize floating pieces for title screen animation.
+ */
+void InitFloatingPieces(void);
+
+/**
+ * Update floating piece positions and rotations.
+ */
+void UpdateFloatingPieces(void);
+
+/**
+ * Draw the title screen with animated background.
+ */
+void DrawTitleScreen(void);
+
+/**
+ * Handle title screen input.
+ */
+void HandleTitleInput(void);
+
+/**
+ * Draw the options overlay.
+ */
+void DrawOptionsScreen(void);
+
+/**
+ * Handle options screen input.
+ */
+void HandleOptionsInput(void);
+
+/**
+ * Draw a menu button and return true if clicked.
+ */
+bool DrawMenuButton(int x, int y, int width, int height, const char *text);
+
+#endif // MENU_H
