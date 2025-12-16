@@ -52,21 +52,28 @@ static char PieceToChar(PieceType type) {
     return '\0';
   }
 }
-
 static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
-                                PieceType type) {
-  // Check if a piece of the given type at (fromRow, fromCol) can reach (toRow,
-  // toCol) This is a simplified check that verifies the move pattern is valid
+                                PieceType type, PieceColor color) {
+  // Check if a piece at (fromRow, fromCol) can legally reach (toRow, toCol)
+  // This must check: movement pattern, path clearance, target not friendly,
+  // and that the move doesn't leave the king in check
 
   int dRow = toRow - fromRow;
   int dCol = toCol - fromCol;
+
+  // Target square cannot be occupied by a friendly piece
+  if (board[toRow][toCol].type != PIECE_NONE &&
+      board[toRow][toCol].color == color) {
+    return false;
+  }
+
+  bool patternValid = false;
 
   switch (type) {
   case PIECE_ROOK:
     // Rook moves horizontally or vertically
     if (dRow != 0 && dCol != 0)
       return false;
-    // Check path is clear
     {
       int stepRow = (dRow == 0) ? 0 : (dRow > 0 ? 1 : -1);
       int stepCol = (dCol == 0) ? 0 : (dCol > 0 ? 1 : -1);
@@ -79,18 +86,17 @@ static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
         c += stepCol;
       }
     }
-    return true;
+    patternValid = true;
+    break;
 
   case PIECE_KNIGHT:
-    // Knight moves in L-shape
-    return (abs(dRow) == 2 && abs(dCol) == 1) ||
-           (abs(dRow) == 1 && abs(dCol) == 2);
+    patternValid = (abs(dRow) == 2 && abs(dCol) == 1) ||
+                   (abs(dRow) == 1 && abs(dCol) == 2);
+    break;
 
   case PIECE_BISHOP:
-    // Bishop moves diagonally
     if (abs(dRow) != abs(dCol))
       return false;
-    // Check path is clear
     {
       int stepRow = (dRow > 0) ? 1 : -1;
       int stepCol = (dCol > 0) ? 1 : -1;
@@ -103,10 +109,10 @@ static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
         c += stepCol;
       }
     }
-    return true;
+    patternValid = true;
+    break;
 
   case PIECE_QUEEN:
-    // Queen moves like rook or bishop
     if (dRow == 0 || dCol == 0) {
       // Rook-like move
       int stepRow = (dRow == 0) ? 0 : (dRow > 0 ? 1 : -1);
@@ -119,7 +125,7 @@ static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
         r += stepRow;
         c += stepCol;
       }
-      return true;
+      patternValid = true;
     } else if (abs(dRow) == abs(dCol)) {
       // Bishop-like move
       int stepRow = (dRow > 0) ? 1 : -1;
@@ -132,13 +138,116 @@ static bool CanPieceReachSquare(int fromRow, int fromCol, int toRow, int toCol,
         r += stepRow;
         c += stepCol;
       }
-      return true;
+      patternValid = true;
     }
-    return false;
+    break;
 
   default:
     return false;
   }
+
+  if (!patternValid)
+    return false;
+
+  // Check if this move would leave the king in check
+  // Temporarily make the move
+  Piece movingPiece = board[fromRow][fromCol];
+  Piece capturedPiece = board[toRow][toCol];
+
+  board[toRow][toCol] = movingPiece;
+  board[fromRow][fromCol] = (Piece){PIECE_NONE, COLOR_NONE, false};
+
+  // Find the king and check if it's in check
+  bool inCheck = false;
+  for (int row = 0; row < BOARD_SIZE && !inCheck; row++) {
+    for (int col = 0; col < BOARD_SIZE && !inCheck; col++) {
+      if (board[row][col].type == PIECE_KING &&
+          board[row][col].color == color) {
+        // Check if this king position is attacked by any enemy piece
+        PieceColor enemy = (color == COLOR_WHITE) ? COLOR_BLACK : COLOR_WHITE;
+
+        // Check pawn attacks
+        int pawnDir = (enemy == COLOR_WHITE) ? 1 : -1;
+        for (int dc = -1; dc <= 1; dc += 2) {
+          int pr = row + pawnDir;
+          int pc = col + dc;
+          if (pr >= 0 && pr < BOARD_SIZE && pc >= 0 && pc < BOARD_SIZE &&
+              board[pr][pc].type == PIECE_PAWN &&
+              board[pr][pc].color == enemy) {
+            inCheck = true;
+          }
+        }
+
+        // Check knight attacks
+        for (int i = 0; i < 8 && !inCheck; i++) {
+          int nr = row + KNIGHT_MOVES[i][0];
+          int nc = col + KNIGHT_MOVES[i][1];
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE &&
+              board[nr][nc].type == PIECE_KNIGHT &&
+              board[nr][nc].color == enemy) {
+            inCheck = true;
+          }
+        }
+
+        // Check rook/queen attacks (straight lines)
+        for (int d = 0; d < 4 && !inCheck; d++) {
+          for (int i = 1; i < BOARD_SIZE; i++) {
+            int tr = row + i * ROOK_DIRECTIONS[d][0];
+            int tc = col + i * ROOK_DIRECTIONS[d][1];
+            if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE)
+              break;
+            if (board[tr][tc].type != PIECE_NONE) {
+              if (board[tr][tc].color == enemy &&
+                  (board[tr][tc].type == PIECE_ROOK ||
+                   board[tr][tc].type == PIECE_QUEEN)) {
+                inCheck = true;
+              }
+              break;
+            }
+          }
+        }
+
+        // Check bishop/queen attacks (diagonals)
+        for (int d = 0; d < 4 && !inCheck; d++) {
+          for (int i = 1; i < BOARD_SIZE; i++) {
+            int tr = row + i * BISHOP_DIRECTIONS[d][0];
+            int tc = col + i * BISHOP_DIRECTIONS[d][1];
+            if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE)
+              break;
+            if (board[tr][tc].type != PIECE_NONE) {
+              if (board[tr][tc].color == enemy &&
+                  (board[tr][tc].type == PIECE_BISHOP ||
+                   board[tr][tc].type == PIECE_QUEEN)) {
+                inCheck = true;
+              }
+              break;
+            }
+          }
+        }
+
+        // Check king attacks (adjacent squares)
+        for (int dr = -1; dr <= 1 && !inCheck; dr++) {
+          for (int dc = -1; dc <= 1 && !inCheck; dc++) {
+            if (dr == 0 && dc == 0)
+              continue;
+            int kr = row + dr;
+            int kc = col + dc;
+            if (kr >= 0 && kr < BOARD_SIZE && kc >= 0 && kc < BOARD_SIZE &&
+                board[kr][kc].type == PIECE_KING &&
+                board[kr][kc].color == enemy) {
+              inCheck = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Restore the board
+  board[fromRow][fromCol] = movingPiece;
+  board[toRow][toCol] = capturedPiece;
+
+  return !inCheck;
 }
 
 // Returns: 0 = no disambiguation, 1 = add file, 2 = add rank, 3 = add both
@@ -162,7 +271,8 @@ static int GetDisambiguationType(MoveRecord *move) {
       // Check if this is the same type of piece
       if (board[row][col].type == type && board[row][col].color == color) {
         // Check if this piece can reach the same target square
-        if (CanPieceReachSquare(row, col, move->toRow, move->toCol, type)) {
+        if (CanPieceReachSquare(row, col, move->toRow, move->toCol, type,
+                                color)) {
           // Ambiguity exists - determine what disambiguation is needed
           if (col == move->fromCol) {
             // Same file - need rank
