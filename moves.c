@@ -8,6 +8,7 @@
 #include "check.h"
 #include "clock.h"
 #include "history.h"
+#include "multiplayer.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -243,6 +244,9 @@ void MovePiece(int toRow, int toCol) {
   RecordMove(fromRow, fromCol, toRow, toCol, piece.type, piece.color, isCapture,
              isCastleKingside, isCastleQueenside, isEnPassantCapture, false,
              PIECE_NONE);
+
+  // Send move to remote player in multiplayer
+  HandleLocalMove(fromRow, fromCol, toRow, toCol, 0);
 
   // Switch clock before changing turn (applies increment to player who moved)
   SwitchClock(piece.color);

@@ -6,8 +6,11 @@
 #include "menu.h"
 #include "board.h"
 #include "clock.h"
+#include "multiplayer.h"
+#include "network.h"
 #include "ui.h"
 #include <stdio.h>
+#include <string.h>
 
 //==============================================================================
 // FLOATING PIECE ANIMATION
@@ -150,10 +153,16 @@ void DrawTitleScreen(void) {
     currentScreen = SCREEN_CLOCK_SETUP;
   }
 
-  // Only show options button if we're on title screen (not clock setup popup)
+  // Only show multiplayer and options buttons if we're on title screen (not
+  // popup)
   if (currentScreen == SCREEN_TITLE) {
     if (DrawMenuButton(buttonX, buttonY + MENU_BUTTON_Y_SPACING, buttonWidth,
-                       buttonHeight, "OPTIONS")) {
+                       buttonHeight, "MULTIPLAYER")) {
+      currentScreen = SCREEN_MULTIPLAYER;
+    }
+
+    if (DrawMenuButton(buttonX, buttonY + MENU_BUTTON_Y_SPACING * 2,
+                       buttonWidth, buttonHeight, "OPTIONS")) {
       currentScreen = SCREEN_OPTIONS;
     }
   }
@@ -463,5 +472,382 @@ void HandleClockSetupInput(void) {
   // ESC returns to title
   if (IsKeyPressed(KEY_ESCAPE)) {
     currentScreen = SCREEN_TITLE;
+  }
+}
+
+//==============================================================================
+// MULTIPLAYER SCREENS
+//==============================================================================
+
+// Text input buffer for multiplayer codes
+static char inputBuffer[NET_CODE_MAX_LEN] = {0};
+static int inputCursor = 0;
+
+// Helper to draw a text input field
+static void DrawTextInput(int x, int y, int width, int height,
+                          const char *buffer, int cursor, const char *hint) {
+  (void)cursor; // Cursor position not used for truncated display
+  // Draw input box
+  DrawRectangle(x, y, width, height, DARKGRAY);
+  DrawRectangleLinesEx((Rectangle){x, y, width, height}, 2, WHITE);
+
+  // Draw text or hint
+  int fontSize = FONT_SIZE_SMALL;
+  if (strlen(buffer) > 0) {
+    // Truncate display if too long
+    char display[64];
+    int len = strlen(buffer);
+    if (len > 50) {
+      snprintf(display, sizeof(display), "%.25s...%.20s", buffer,
+               buffer + len - 20);
+    } else {
+      strncpy(display, buffer, sizeof(display) - 1);
+      display[sizeof(display) - 1] = '\0';
+    }
+    DrawText(display, x + 10, y + (height - fontSize) / 2, fontSize, WHITE);
+  } else {
+    DrawText(hint, x + 10, y + (height - fontSize) / 2, fontSize, GRAY);
+  }
+
+  // Draw cursor
+  if ((int)(GetTime() * 2) % 2 == 0) {
+    int textWidth = strlen(buffer) > 0 ? MeasureText(buffer, fontSize) : 0;
+    if (textWidth > width - 30)
+      textWidth = width - 30;
+    DrawRectangle(x + 10 + textWidth, y + 5, 2, height - 10, WHITE);
+  }
+}
+
+// Handle text input
+static void HandleTextInput(char *buffer, int *cursor, int maxLen) {
+  // Handle character input
+  int key = GetCharPressed();
+  while (key > 0) {
+    if ((key >= 32) && (key <= 125) && (*cursor < maxLen - 1)) {
+      buffer[*cursor] = (char)key;
+      buffer[*cursor + 1] = '\0';
+      (*cursor)++;
+    }
+    key = GetCharPressed();
+  }
+
+  // Handle backspace
+  if (IsKeyPressed(KEY_BACKSPACE) && *cursor > 0) {
+    (*cursor)--;
+    buffer[*cursor] = '\0';
+  }
+
+  // Handle paste (Ctrl+V)
+  if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) &&
+      IsKeyPressed(KEY_V)) {
+    const char *clipboard = GetClipboardText();
+    if (clipboard) {
+      int clipLen = strlen(clipboard);
+      int copyLen =
+          (clipLen < maxLen - *cursor - 1) ? clipLen : maxLen - *cursor - 1;
+      memcpy(buffer + *cursor, clipboard, copyLen);
+      *cursor += copyLen;
+      buffer[*cursor] = '\0';
+    }
+  }
+}
+
+void DrawMultiplayerScreen(void) {
+  // Darken background
+  DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
+
+  // Panel
+  int panelWidth = 400;
+  int panelHeight = 350;
+  int panelX = (WINDOW_WIDTH - panelWidth) / 2;
+  int panelY = (WINDOW_HEIGHT - panelHeight) / 2;
+
+  DrawRectangle(panelX, panelY, panelWidth, panelHeight, COLOR_PANEL_BG);
+  DrawRectangleLinesEx((Rectangle){panelX, panelY, panelWidth, panelHeight}, 3,
+                       WHITE);
+
+  // Title
+  const char *title = "MULTIPLAYER";
+  int titleWidth = MeasureText(title, FONT_SIZE_TITLE);
+  DrawText(title, panelX + (panelWidth - titleWidth) / 2, panelY + 20,
+           FONT_SIZE_TITLE, WHITE);
+
+  // Description
+  const char *desc = "Play chess with a friend online!";
+  int descWidth = MeasureText(desc, FONT_SIZE_SMALL);
+  DrawText(desc, panelX + (panelWidth - descWidth) / 2, panelY + 75,
+           FONT_SIZE_SMALL, LIGHTGRAY);
+
+  // Buttons
+  int buttonWidth = 200;
+  int buttonHeight = 50;
+  int buttonX = panelX + (panelWidth - buttonWidth) / 2;
+
+  if (DrawMenuButton(buttonX, panelY + 120, buttonWidth, buttonHeight,
+                     "CREATE GAME")) {
+    memset(inputBuffer, 0, sizeof(inputBuffer));
+    inputCursor = 0;
+    multiplayerRole = MP_ROLE_HOST;
+    CreateHostSession();
+    currentScreen = SCREEN_MP_HOST;
+  }
+
+  if (DrawMenuButton(buttonX, panelY + 190, buttonWidth, buttonHeight,
+                     "JOIN GAME")) {
+    memset(inputBuffer, 0, sizeof(inputBuffer));
+    inputCursor = 0;
+    multiplayerRole = MP_ROLE_GUEST;
+    currentScreen = SCREEN_MP_JOIN;
+  }
+
+  // Back button
+  if (DrawMenuButton(buttonX, panelY + panelHeight - 70, buttonWidth, 40,
+                     "BACK")) {
+    currentScreen = SCREEN_TITLE;
+  }
+}
+
+void HandleMultiplayerInput(void) {
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    currentScreen = SCREEN_TITLE;
+  }
+}
+
+void DrawHostScreen(void) {
+  // Darken background
+  DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
+
+  // Panel
+  int panelWidth = 500;
+  int panelHeight = 480;
+  int panelX = (WINDOW_WIDTH - panelWidth) / 2;
+  int panelY = (WINDOW_HEIGHT - panelHeight) / 2;
+
+  DrawRectangle(panelX, panelY, panelWidth, panelHeight, COLOR_PANEL_BG);
+  DrawRectangleLinesEx((Rectangle){panelX, panelY, panelWidth, panelHeight}, 3,
+                       WHITE);
+
+  // Title
+  const char *title = "CREATE GAME";
+  int titleWidth = MeasureText(title, FONT_SIZE_TITLE);
+  DrawText(title, panelX + (panelWidth - titleWidth) / 2, panelY + 15,
+           FONT_SIZE_TITLE, WHITE);
+
+  int contentX = panelX + 25;
+  int contentY = panelY + 70;
+
+  // Status
+  const char *status = GetNetworkStatusString();
+  DrawText("Status:", contentX, contentY, FONT_SIZE_SMALL, LIGHTGRAY);
+  DrawText(status, contentX + 80, contentY, FONT_SIZE_SMALL, COLOR_TITLE_GOLD);
+  contentY += 30;
+
+  NetworkState state = GetNetworkState();
+
+  if (state == NET_WAITING_ANSWER || state == NET_CONNECTING ||
+      state == NET_CONNECTED) {
+    // Show offer code
+    DrawText("Your Offer Code:", contentX, contentY, FONT_SIZE_SMALL, WHITE);
+    contentY += 25;
+
+    // Display truncated code
+    char displayCode[64];
+    int codeLen = strlen(localOfferCode);
+    if (codeLen > 50) {
+      snprintf(displayCode, sizeof(displayCode), "%.25s...%.20s",
+               localOfferCode, localOfferCode + codeLen - 20);
+    } else {
+      strncpy(displayCode, localOfferCode, sizeof(displayCode) - 1);
+      displayCode[sizeof(displayCode) - 1] = '\0';
+    }
+    DrawRectangle(contentX, contentY, panelWidth - 50, 30, DARKGRAY);
+    DrawText(displayCode, contentX + 5, contentY + 5, FONT_SIZE_SMALL, WHITE);
+    contentY += 35;
+
+    // Copy button
+    if (DrawMenuButton(contentX, contentY, 150, 35, "COPY CODE")) {
+      SetClipboardText(localOfferCode);
+    }
+    contentY += 50;
+
+    // Instructions
+    DrawText("1. Copy the code above", contentX, contentY, FONT_SIZE_SMALL,
+             LIGHTGRAY);
+    contentY += 20;
+    DrawText("2. Send it to your friend", contentX, contentY, FONT_SIZE_SMALL,
+             LIGHTGRAY);
+    contentY += 20;
+    DrawText("3. Paste their answer code below", contentX, contentY,
+             FONT_SIZE_SMALL, LIGHTGRAY);
+    contentY += 30;
+
+    // Answer code input
+    DrawText("Friend's Answer Code:", contentX, contentY, FONT_SIZE_SMALL,
+             WHITE);
+    contentY += 25;
+
+    DrawTextInput(contentX, contentY, panelWidth - 50, 35, inputBuffer,
+                  inputCursor, "Paste answer code here...");
+    contentY += 45;
+
+    // Connect button
+    if (strlen(inputBuffer) > 10) {
+      if (DrawMenuButton(contentX, contentY, 150, 35, "CONNECT")) {
+        SetAnswerCode(inputBuffer);
+      }
+    }
+  } else if (state == NET_GATHERING) {
+    DrawText("Gathering network information...", contentX, contentY,
+             FONT_SIZE_SMALL, LIGHTGRAY);
+    DrawText("Please wait...", contentX, contentY + 25, FONT_SIZE_SMALL, GRAY);
+  } else if (state == NET_FAILED) {
+    DrawText("Connection failed!", contentX, contentY, FONT_SIZE_SMALL, RED);
+    DrawText("Please try again.", contentX, contentY + 25, FONT_SIZE_SMALL,
+             GRAY);
+  }
+
+  // Check if connected - start the game
+  if (state == NET_CONNECTED) {
+    StartMultiplayerGame();
+    currentScreen = SCREEN_GAME;
+  }
+
+  // Back button
+  if (DrawMenuButton(panelX + (panelWidth - 150) / 2, panelY + panelHeight - 50,
+                     150, 35, "CANCEL")) {
+    DisconnectNetwork();
+    ResetMultiplayer();
+    currentScreen = SCREEN_MULTIPLAYER;
+  }
+}
+
+void HandleHostInput(void) {
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    DisconnectNetwork();
+    ResetMultiplayer();
+    currentScreen = SCREEN_MULTIPLAYER;
+  }
+
+  // Handle text input for answer code
+  HandleTextInput(inputBuffer, &inputCursor, NET_CODE_MAX_LEN);
+}
+
+void DrawJoinScreen(void) {
+  // Darken background
+  DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
+
+  // Panel
+  int panelWidth = 500;
+  int panelHeight = 450;
+  int panelX = (WINDOW_WIDTH - panelWidth) / 2;
+  int panelY = (WINDOW_HEIGHT - panelHeight) / 2;
+
+  DrawRectangle(panelX, panelY, panelWidth, panelHeight, COLOR_PANEL_BG);
+  DrawRectangleLinesEx((Rectangle){panelX, panelY, panelWidth, panelHeight}, 3,
+                       WHITE);
+
+  // Title
+  const char *title = "JOIN GAME";
+  int titleWidth = MeasureText(title, FONT_SIZE_TITLE);
+  DrawText(title, panelX + (panelWidth - titleWidth) / 2, panelY + 15,
+           FONT_SIZE_TITLE, WHITE);
+
+  int contentX = panelX + 25;
+  int contentY = panelY + 70;
+
+  // Status
+  const char *status = GetNetworkStatusString();
+  DrawText("Status:", contentX, contentY, FONT_SIZE_SMALL, LIGHTGRAY);
+  DrawText(status, contentX + 80, contentY, FONT_SIZE_SMALL, COLOR_TITLE_GOLD);
+  contentY += 30;
+
+  NetworkState state = GetNetworkState();
+
+  if (state == NET_DISCONNECTED) {
+    // Input for host's offer code
+    DrawText("Host's Offer Code:", contentX, contentY, FONT_SIZE_SMALL, WHITE);
+    contentY += 25;
+
+    DrawTextInput(contentX, contentY, panelWidth - 50, 35, inputBuffer,
+                  inputCursor, "Paste offer code here...");
+    contentY += 50;
+
+    // Connect button
+    if (strlen(inputBuffer) > 10) {
+      if (DrawMenuButton(contentX, contentY, 150, 35, "CONNECT")) {
+        JoinSession(inputBuffer);
+      }
+    }
+  } else if (state == NET_GATHERING) {
+    DrawText("Connecting to host...", contentX, contentY, FONT_SIZE_SMALL,
+             LIGHTGRAY);
+    DrawText("Generating answer code...", contentX, contentY + 25,
+             FONT_SIZE_SMALL, GRAY);
+  } else if (state == NET_WAITING_CONNECTION || state == NET_CONNECTING) {
+    // Show answer code
+    DrawText("Your Answer Code:", contentX, contentY, FONT_SIZE_SMALL, WHITE);
+    contentY += 25;
+
+    // Display truncated code
+    char displayCode[64];
+    int codeLen = strlen(localAnswerCode);
+    if (codeLen > 50) {
+      snprintf(displayCode, sizeof(displayCode), "%.25s...%.20s",
+               localAnswerCode, localAnswerCode + codeLen - 20);
+    } else {
+      strncpy(displayCode, localAnswerCode, sizeof(displayCode) - 1);
+      displayCode[sizeof(displayCode) - 1] = '\0';
+    }
+    DrawRectangle(contentX, contentY, panelWidth - 50, 30, DARKGRAY);
+    DrawText(displayCode, contentX + 5, contentY + 5, FONT_SIZE_SMALL, WHITE);
+    contentY += 35;
+
+    // Copy button
+    if (DrawMenuButton(contentX, contentY, 150, 35, "COPY CODE")) {
+      SetClipboardText(localAnswerCode);
+    }
+    contentY += 50;
+
+    // Instructions
+    DrawText("1. Copy the code above", contentX, contentY, FONT_SIZE_SMALL,
+             LIGHTGRAY);
+    contentY += 20;
+    DrawText("2. Send it to the host", contentX, contentY, FONT_SIZE_SMALL,
+             LIGHTGRAY);
+    contentY += 20;
+    DrawText("3. Wait for connection...", contentX, contentY, FONT_SIZE_SMALL,
+             LIGHTGRAY);
+  } else if (state == NET_FAILED) {
+    DrawText("Connection failed!", contentX, contentY, FONT_SIZE_SMALL, RED);
+    DrawText("Please try again.", contentX, contentY + 25, FONT_SIZE_SMALL,
+             GRAY);
+  }
+
+  // Check if connected - start the game
+  if (state == NET_CONNECTED) {
+    StartMultiplayerGame();
+    currentScreen = SCREEN_GAME;
+  }
+
+  // Back button
+  if (DrawMenuButton(panelX + (panelWidth - 150) / 2, panelY + panelHeight - 50,
+                     150, 35, "CANCEL")) {
+    DisconnectNetwork();
+    ResetMultiplayer();
+    currentScreen = SCREEN_MULTIPLAYER;
+  }
+}
+
+void HandleJoinInput(void) {
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    DisconnectNetwork();
+    ResetMultiplayer();
+    currentScreen = SCREEN_MULTIPLAYER;
+  }
+
+  // Handle text input for offer code
+  NetworkState state = GetNetworkState();
+  if (state == NET_DISCONNECTED) {
+    HandleTextInput(inputBuffer, &inputCursor, NET_CODE_MAX_LEN);
   }
 }

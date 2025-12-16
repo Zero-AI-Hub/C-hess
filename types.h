@@ -119,7 +119,10 @@ typedef enum {
   SCREEN_TITLE,
   SCREEN_CLOCK_SETUP,
   SCREEN_GAME,
-  SCREEN_OPTIONS
+  SCREEN_OPTIONS,
+  SCREEN_MULTIPLAYER,
+  SCREEN_MP_HOST,
+  SCREEN_MP_JOIN
 } ScreenState;
 
 // Helper struct for UI panel layouts

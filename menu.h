@@ -63,4 +63,34 @@ void DrawClockSetupScreen(void);
  */
 void HandleClockSetupInput(void);
 
+/**
+ * Draw the multiplayer menu screen.
+ */
+void DrawMultiplayerScreen(void);
+
+/**
+ * Handle multiplayer menu input.
+ */
+void HandleMultiplayerInput(void);
+
+/**
+ * Draw the host game screen.
+ */
+void DrawHostScreen(void);
+
+/**
+ * Handle host screen input.
+ */
+void HandleHostInput(void);
+
+/**
+ * Draw the join game screen.
+ */
+void DrawJoinScreen(void);
+
+/**
+ * Handle join screen input.
+ */
+void HandleJoinInput(void);
+
 #endif // MENU_H

@@ -7,6 +7,7 @@
  * - Check, checkmate, and stalemate detection
  * - Visual highlighting for valid moves and check state
  * - Chess clock with multiple time control modes
+ * - P2P multiplayer with NAT traversal
  */
 
 #include "board.h"
@@ -14,6 +15,8 @@
 #include "clock.h"
 #include "menu.h"
 #include "moves.h"
+#include "multiplayer.h"
+#include "network.h"
 #include "raylib.h"
 #include "types.h"
 #include "ui.h"
@@ -27,15 +30,24 @@ int main(void) {
   InitFloatingPieces();
   InitClockConfig();
   InitBoard();
+  InitMultiplayer();
 
   while (!WindowShouldClose()) {
     // ESC returns to menu (does nothing on title screen)
-    // Clock setup has its own ESC handling
-    if (IsKeyPressed(KEY_ESCAPE) && currentScreen != SCREEN_TITLE &&
-        currentScreen != SCREEN_CLOCK_SETUP) {
+    // Various screens have their own ESC handling
+    if (IsKeyPressed(KEY_ESCAPE) && currentScreen == SCREEN_GAME) {
       StopClock();
+      if (isMultiplayerGame) {
+        DisconnectNetwork();
+        ResetMultiplayer();
+      }
       currentScreen = SCREEN_TITLE;
       continue;
+    }
+
+    // Update multiplayer in game
+    if (currentScreen == SCREEN_GAME && isMultiplayerGame) {
+      UpdateMultiplayer();
     }
 
     // Update and handle input based on current screen
@@ -55,6 +67,21 @@ int main(void) {
       HandleOptionsInput();
       break;
 
+    case SCREEN_MULTIPLAYER:
+      UpdateFloatingPieces();
+      HandleMultiplayerInput();
+      break;
+
+    case SCREEN_MP_HOST:
+      UpdateFloatingPieces();
+      HandleHostInput();
+      break;
+
+    case SCREEN_MP_JOIN:
+      UpdateFloatingPieces();
+      HandleJoinInput();
+      break;
+
     case SCREEN_GAME:
       // Update clock and check for timeout
       if (gameState == GAME_PLAYING || gameState == GAME_CHECK) {
@@ -69,13 +96,16 @@ int main(void) {
         HandlePromotion();
       } else if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE ||
                  gameState == GAME_TIMEOUT) {
-        if (IsKeyPressed(KEY_R)) {
+        if (IsKeyPressed(KEY_R) && !isMultiplayerGame) {
           InitBoard();
           InitClock();
           StartClock();
         }
       } else {
-        HandleInput();
+        // Only handle input if it's the local player's turn (or local game)
+        if (IsLocalPlayerTurn()) {
+          HandleInput();
+        }
       }
       break;
     }
@@ -99,6 +129,21 @@ int main(void) {
       DrawOptionsScreen();
       break;
 
+    case SCREEN_MULTIPLAYER:
+      DrawTitleScreen();
+      DrawMultiplayerScreen();
+      break;
+
+    case SCREEN_MP_HOST:
+      DrawTitleScreen();
+      DrawHostScreen();
+      break;
+
+    case SCREEN_MP_JOIN:
+      DrawTitleScreen();
+      DrawJoinScreen();
+      break;
+
     case SCREEN_GAME:
       DrawBoard();
       DrawValidMoves();
@@ -119,6 +164,7 @@ int main(void) {
     EndDrawing();
   }
 
+  ShutdownNetwork();
   UnloadPiecesTexture();
   CloseWindow();
   return 0;
