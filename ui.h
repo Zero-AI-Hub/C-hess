@@ -63,6 +63,11 @@ void DrawGameOverScreen(void);
  */
 void DrawMoveHistory(void);
 
+/**
+ * Draw the chess clocks for both players.
+ */
+void DrawClocks(void);
+
 //==============================================================================
 // INPUT HANDLING
 //==============================================================================

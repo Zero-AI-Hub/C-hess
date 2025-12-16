@@ -53,4 +53,14 @@ void HandleOptionsInput(void);
  */
 bool DrawMenuButton(int x, int y, int width, int height, const char *text);
 
+/**
+ * Draw the clock setup screen.
+ */
+void DrawClockSetupScreen(void);
+
+/**
+ * Handle clock setup screen input.
+ */
+void HandleClockSetupInput(void);
+
 #endif // MENU_H

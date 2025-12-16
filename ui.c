@@ -6,6 +6,7 @@
 #include "ui.h"
 #include "board.h"
 #include "check.h"
+#include "clock.h"
 #include "history.h"
 #include "moves.h"
 #include <stdio.h>
@@ -175,6 +176,11 @@ void DrawUI(void) {
     stateText = " - STALEMATE! Draw!";
     stateColor = GRAY;
     break;
+  case GAME_TIMEOUT:
+    stateText = (currentTurn == COLOR_WHITE) ? " - TIME! Black wins!"
+                                             : " - TIME! White wins!";
+    stateColor = RED;
+    break;
   default:
     break;
   }
@@ -182,7 +188,8 @@ void DrawUI(void) {
   DrawText(stateText, BOARD_OFFSET_X + MeasureText(turnText, FONT_SIZE_MEDIUM),
            y, FONT_SIZE_MEDIUM, stateColor);
 
-  if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
+  if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE ||
+      gameState == GAME_TIMEOUT) {
     DrawText("Press R to restart",
              BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE - 180, y, FONT_SIZE_SMALL,
              GRAY);
@@ -274,6 +281,102 @@ void DrawMoveHistory(void) {
   }
 }
 
+void DrawClocks(void) {
+  if (!IsClockEnabled()) {
+    return;
+  }
+
+  // Position clocks above the history panel
+  int clockX = BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE + 20;
+  int clockWidth = HISTORY_PANEL_WIDTH - 30;
+  int clockHeight = CLOCK_PANEL_HEIGHT;
+
+  // Black's clock at top (matching board orientation)
+  int blackClockY = BOARD_OFFSET_Y - clockHeight - 10;
+  // White's clock at bottom
+  int whiteClockY = BOARD_OFFSET_Y + BOARD_SIZE * TILE_SIZE + 10;
+
+  // Get time values
+  float whiteTime = GetPlayerTime(COLOR_WHITE);
+  float blackTime = GetPlayerTime(COLOR_BLACK);
+
+  char whiteTimeStr[16];
+  char blackTimeStr[16];
+  FormatTime(whiteTime, whiteTimeStr);
+  FormatTime(blackTime, blackTimeStr);
+
+  // Helper to determine clock colors
+  bool whiteActive = gameClock.isRunning && currentTurn == COLOR_WHITE;
+  bool blackActive = gameClock.isRunning && currentTurn == COLOR_BLACK;
+
+  // Flashing effect for critical time
+  bool flashOn = ((int)(GetTime() * 4) % 2 == 0);
+
+  // Draw Black's clock
+  {
+    Color bgColor = COLOR_PANEL_BG;
+    Color textColor = WHITE;
+    Color borderColor = WHITE;
+
+    if (blackActive) {
+      bgColor = (Color){60, 60, 80, 255}; // Highlighted
+      borderColor = COLOR_TITLE_GOLD;
+    }
+
+    if (blackTime < CLOCK_CRITICAL_TIME_THRESHOLD && flashOn) {
+      bgColor = (Color){150, 50, 50, 255}; // Flashing red
+    } else if (blackTime < CLOCK_LOW_TIME_THRESHOLD) {
+      bgColor = (Color){100, 40, 40, 255}; // Low time warning
+    }
+
+    DrawRectangle(clockX, blackClockY, clockWidth, clockHeight, bgColor);
+    DrawRectangleLinesEx(
+        (Rectangle){clockX, blackClockY, clockWidth, clockHeight}, 2,
+        borderColor);
+
+    // Draw "Black" label
+    DrawText("Black", clockX + 10, blackClockY + 5, FONT_SIZE_SMALL, GRAY);
+
+    // Draw time
+    int timeWidth = MeasureText(blackTimeStr, FONT_SIZE_LARGE);
+    DrawText(blackTimeStr, clockX + (clockWidth - timeWidth) / 2,
+             blackClockY + (clockHeight - FONT_SIZE_LARGE) / 2 + 5,
+             FONT_SIZE_LARGE, textColor);
+  }
+
+  // Draw White's clock
+  {
+    Color bgColor = COLOR_PANEL_BG;
+    Color textColor = WHITE;
+    Color borderColor = WHITE;
+
+    if (whiteActive) {
+      bgColor = (Color){60, 60, 80, 255}; // Highlighted
+      borderColor = COLOR_TITLE_GOLD;
+    }
+
+    if (whiteTime < CLOCK_CRITICAL_TIME_THRESHOLD && flashOn) {
+      bgColor = (Color){150, 50, 50, 255}; // Flashing red
+    } else if (whiteTime < CLOCK_LOW_TIME_THRESHOLD) {
+      bgColor = (Color){100, 40, 40, 255}; // Low time warning
+    }
+
+    DrawRectangle(clockX, whiteClockY, clockWidth, clockHeight, bgColor);
+    DrawRectangleLinesEx(
+        (Rectangle){clockX, whiteClockY, clockWidth, clockHeight}, 2,
+        borderColor);
+
+    // Draw "White" label
+    DrawText("White", clockX + 10, whiteClockY + 5, FONT_SIZE_SMALL, GRAY);
+
+    // Draw time
+    int timeWidth = MeasureText(whiteTimeStr, FONT_SIZE_LARGE);
+    DrawText(whiteTimeStr, clockX + (clockWidth - timeWidth) / 2,
+             whiteClockY + (clockHeight - FONT_SIZE_LARGE) / 2 + 5,
+             FONT_SIZE_LARGE, textColor);
+  }
+}
+
 void DrawPromotionUI(void) {
   DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
 
@@ -315,13 +418,23 @@ void DrawGameOverScreen(void) {
   DrawRectangleLinesEx((Rectangle){panelX, panelY, panelWidth, panelHeight}, 3,
                        WHITE);
 
-  const char *titleText =
-      (gameState == GAME_CHECKMATE) ? "CHECKMATE!" : "STALEMATE!";
-  const char *subtitleText =
-      (gameState == GAME_CHECKMATE)
-          ? ((currentTurn == COLOR_WHITE) ? "Black Wins!" : "White Wins!")
-          : "It's a Draw!";
-  Color titleColor = (gameState == GAME_CHECKMATE) ? RED : GRAY;
+  const char *titleText;
+  const char *subtitleText;
+  Color titleColor;
+
+  if (gameState == GAME_TIMEOUT) {
+    titleText = "TIME OUT!";
+    subtitleText = (currentTurn == COLOR_WHITE) ? "Black Wins!" : "White Wins!";
+    titleColor = RED;
+  } else if (gameState == GAME_CHECKMATE) {
+    titleText = "CHECKMATE!";
+    subtitleText = (currentTurn == COLOR_WHITE) ? "Black Wins!" : "White Wins!";
+    titleColor = RED;
+  } else {
+    titleText = "STALEMATE!";
+    subtitleText = "It's a Draw!";
+    titleColor = GRAY;
+  }
 
   int titleWidth = MeasureText(titleText, FONT_SIZE_TITLE);
   DrawText(titleText, panelX + (panelWidth - titleWidth) / 2, panelY + 30,
@@ -429,6 +542,10 @@ void HandlePromotion(void) {
       RecordMove(promotionFromPos.row, promotionFromPos.col, promotionPos.row,
                  promotionPos.col, PIECE_PAWN, pieceColor, promotionWasCapture,
                  false, false, false, true, options[i]);
+
+      // Switch clock before changing turn (applies increment to player who
+      // moved)
+      SwitchClock(pieceColor);
 
       // Switch turns and update game state
       currentTurn = OPPONENT_COLOR(currentTurn);

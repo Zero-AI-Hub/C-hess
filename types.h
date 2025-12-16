@@ -54,6 +54,12 @@
 #define MENU_BUTTON_Y_START 380
 #define MENU_BUTTON_Y_SPACING 70
 
+// Clock display constants
+#define CLOCK_PANEL_WIDTH 200
+#define CLOCK_PANEL_HEIGHT 50
+#define CLOCK_LOW_TIME_THRESHOLD 20.0f
+#define CLOCK_CRITICAL_TIME_THRESHOLD 10.0f
+
 //==============================================================================
 // COLOR PALETTE (defined in constants.c)
 //==============================================================================
@@ -105,10 +111,16 @@ typedef enum {
   GAME_CHECK,
   GAME_CHECKMATE,
   GAME_STALEMATE,
+  GAME_TIMEOUT,
   GAME_PROMOTING
 } GameState;
 
-typedef enum { SCREEN_TITLE, SCREEN_GAME, SCREEN_OPTIONS } ScreenState;
+typedef enum {
+  SCREEN_TITLE,
+  SCREEN_CLOCK_SETUP,
+  SCREEN_GAME,
+  SCREEN_OPTIONS
+} ScreenState;
 
 // Helper struct for UI panel layouts
 typedef struct {

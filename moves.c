@@ -6,6 +6,7 @@
 #include "moves.h"
 #include "board.h"
 #include "check.h"
+#include "clock.h"
 #include "history.h"
 #include <stdlib.h>
 #include <string.h>
@@ -243,6 +244,9 @@ void MovePiece(int toRow, int toCol) {
   RecordMove(fromRow, fromCol, toRow, toCol, piece.type, piece.color, isCapture,
              isCastleKingside, isCastleQueenside, isEnPassantCapture, false,
              PIECE_NONE);
+
+  // Switch clock before changing turn (applies increment to player who moved)
+  SwitchClock(piece.color);
 
   // Switch turns and update game state
   currentTurn = OPPONENT_COLOR(currentTurn);
