@@ -78,9 +78,17 @@ static void base64_decode(const char *input, char *output, size_t outMaxLen) {
 
   for (i = 0, j = 0; i < inLen && j < outMaxLen - 1;) {
     int v0 = base64_char_value(input[i++]);
-    int v1 = i < inLen ? base64_char_value(input[i++]) : 0;
-    int v2 = i < inLen ? base64_char_value(input[i++]) : 0;
-    int v3 = i < inLen ? base64_char_value(input[i++]) : 0;
+
+    // Track whether we have actual input data at each position
+    bool hasV1 = (i < inLen);
+    bool hasV2 = false;
+    bool hasV3 = false;
+
+    int v1 = hasV1 ? base64_char_value(input[i++]) : 0;
+    hasV2 = (i < inLen);
+    int v2 = hasV2 ? base64_char_value(input[i++]) : 0;
+    hasV3 = (i < inLen);
+    int v3 = hasV3 ? base64_char_value(input[i++]) : 0;
 
     if (v0 < 0 || v1 < 0)
       break;
@@ -89,9 +97,9 @@ static void base64_decode(const char *input, char *output, size_t outMaxLen) {
 
     if (j < outMaxLen - 1)
       output[j++] = (triple >> 16) & 0xFF;
-    if (j < outMaxLen - 1 && v2 >= 0)
+    if (j < outMaxLen - 1 && hasV2 && v2 >= 0)
       output[j++] = (triple >> 8) & 0xFF;
-    if (j < outMaxLen - 1 && v3 >= 0)
+    if (j < outMaxLen - 1 && hasV3 && v3 >= 0)
       output[j++] = triple & 0xFF;
   }
   output[j] = '\0';

@@ -108,6 +108,19 @@ bool WouldBeInCheck(int fromRow, int fromCol, int toRow, int toCol,
     board[enPassantPawn.row][enPassantPawn.col] = EMPTY_SQUARE;
   }
 
+  // Save and update cached king position if simulating a king move
+  Position savedKingPos = INVALID_POS;
+  bool isKingMove = (movingPiece.type == PIECE_KING);
+  if (isKingMove) {
+    if (color == COLOR_WHITE) {
+      savedKingPos = whiteKingPos;
+      whiteKingPos = (Position){toRow, toCol};
+    } else {
+      savedKingPos = blackKingPos;
+      blackKingPos = (Position){toRow, toCol};
+    }
+  }
+
   // Make temporary move
   board[toRow][toCol] = movingPiece;
   board[fromRow][fromCol] = EMPTY_SQUARE;
@@ -119,6 +132,15 @@ bool WouldBeInCheck(int fromRow, int fromCol, int toRow, int toCol,
   board[toRow][toCol] = capturedPiece;
   if (isEnPassant) {
     board[enPassantPawn.row][enPassantPawn.col] = enPassantCaptured;
+  }
+
+  // Restore cached king position
+  if (isKingMove) {
+    if (color == COLOR_WHITE) {
+      whiteKingPos = savedKingPos;
+    } else {
+      blackKingPos = savedKingPos;
+    }
   }
 
   return inCheck;
