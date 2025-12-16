@@ -11,6 +11,28 @@
 // ATTACK DETECTION
 //==============================================================================
 
+// Helper to check sliding piece attacks along given directions
+static bool CheckSlidingAttack(int row, int col, PieceColor byColor,
+                               const int dirs[4][2], PieceType primary) {
+  for (int d = 0; d < 4; d++) {
+    for (int i = 1; i < BOARD_SIZE; i++) {
+      int tr = row + i * dirs[d][0];
+      int tc = col + i * dirs[d][1];
+      if (!IsValidPosition(tr, tc))
+        break;
+      if (board[tr][tc].type != PIECE_NONE) {
+        if (board[tr][tc].color == byColor &&
+            (board[tr][tc].type == primary ||
+             board[tr][tc].type == PIECE_QUEEN)) {
+          return true;
+        }
+        break;
+      }
+    }
+  }
+  return false;
+}
+
 bool IsSquareAttacked(int row, int col, PieceColor byColor) {
   // Pawn attacks (pawns attack diagonally)
   int pawnDir = (byColor == COLOR_WHITE) ? 1 : -1;
@@ -26,11 +48,10 @@ bool IsSquareAttacked(int row, int col, PieceColor byColor) {
 
   // Knight attacks
   for (int i = 0; i < 8; i++) {
-    int targetRow = row + KNIGHT_MOVES[i][0];
-    int targetCol = col + KNIGHT_MOVES[i][1];
-    if (IsValidPosition(targetRow, targetCol) &&
-        board[targetRow][targetCol].type == PIECE_KNIGHT &&
-        board[targetRow][targetCol].color == byColor) {
+    int tr = row + KNIGHT_MOVES[i][0];
+    int tc = col + KNIGHT_MOVES[i][1];
+    if (IsValidPosition(tr, tc) && board[tr][tc].type == PIECE_KNIGHT &&
+        board[tr][tc].color == byColor) {
       return true;
     }
   }
@@ -40,51 +61,22 @@ bool IsSquareAttacked(int row, int col, PieceColor byColor) {
     for (int dc = -1; dc <= 1; dc++) {
       if (dr == 0 && dc == 0)
         continue;
-      int targetRow = row + dr;
-      int targetCol = col + dc;
-      if (IsValidPosition(targetRow, targetCol) &&
-          board[targetRow][targetCol].type == PIECE_KING &&
-          board[targetRow][targetCol].color == byColor) {
+      int tr = row + dr;
+      int tc = col + dc;
+      if (IsValidPosition(tr, tc) && board[tr][tc].type == PIECE_KING &&
+          board[tr][tc].color == byColor) {
         return true;
       }
     }
   }
 
   // Rook/Queen attacks (horizontal/vertical)
-  for (int d = 0; d < 4; d++) {
-    for (int i = 1; i < BOARD_SIZE; i++) {
-      int targetRow = row + i * ROOK_DIRECTIONS[d][0];
-      int targetCol = col + i * ROOK_DIRECTIONS[d][1];
-      if (!IsValidPosition(targetRow, targetCol))
-        break;
-      if (board[targetRow][targetCol].type != PIECE_NONE) {
-        if (board[targetRow][targetCol].color == byColor &&
-            (board[targetRow][targetCol].type == PIECE_ROOK ||
-             board[targetRow][targetCol].type == PIECE_QUEEN)) {
-          return true;
-        }
-        break;
-      }
-    }
-  }
+  if (CheckSlidingAttack(row, col, byColor, ROOK_DIRECTIONS, PIECE_ROOK))
+    return true;
 
   // Bishop/Queen attacks (diagonal)
-  for (int d = 0; d < 4; d++) {
-    for (int i = 1; i < BOARD_SIZE; i++) {
-      int targetRow = row + i * BISHOP_DIRECTIONS[d][0];
-      int targetCol = col + i * BISHOP_DIRECTIONS[d][1];
-      if (!IsValidPosition(targetRow, targetCol))
-        break;
-      if (board[targetRow][targetCol].type != PIECE_NONE) {
-        if (board[targetRow][targetCol].color == byColor &&
-            (board[targetRow][targetCol].type == PIECE_BISHOP ||
-             board[targetRow][targetCol].type == PIECE_QUEEN)) {
-          return true;
-        }
-        break;
-      }
-    }
-  }
+  if (CheckSlidingAttack(row, col, byColor, BISHOP_DIRECTIONS, PIECE_BISHOP))
+    return true;
 
   return false;
 }
@@ -105,7 +97,7 @@ bool WouldBeInCheck(int fromRow, int fromCol, int toRow, int toCol,
   // Save board state
   Piece movingPiece = board[fromRow][fromCol];
   Piece capturedPiece = board[toRow][toCol];
-  Piece enPassantCaptured = {PIECE_NONE, COLOR_NONE, false};
+  Piece enPassantCaptured = EMPTY_SQUARE;
 
   // Handle en passant capture simulation
   bool isEnPassant =
@@ -113,13 +105,12 @@ bool WouldBeInCheck(int fromRow, int fromCol, int toRow, int toCol,
        toCol == enPassantTarget.col);
   if (isEnPassant) {
     enPassantCaptured = board[enPassantPawn.row][enPassantPawn.col];
-    board[enPassantPawn.row][enPassantPawn.col] =
-        (Piece){PIECE_NONE, COLOR_NONE, false};
+    board[enPassantPawn.row][enPassantPawn.col] = EMPTY_SQUARE;
   }
 
   // Make temporary move
   board[toRow][toCol] = movingPiece;
-  board[fromRow][fromCol] = (Piece){PIECE_NONE, COLOR_NONE, false};
+  board[fromRow][fromCol] = EMPTY_SQUARE;
 
   bool inCheck = IsInCheck(color);
 

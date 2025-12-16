@@ -168,8 +168,11 @@ static int GetDisambiguationType(MoveRecord *move) {
 
   for (int row = 0; row < BOARD_SIZE; row++) {
     for (int col = 0; col < BOARD_SIZE; col++) {
-      // Skip the piece that made the move
+      // Skip the original position (now empty) and destination (the moved
+      // piece)
       if (row == move->fromRow && col == move->fromCol)
+        continue;
+      if (row == move->toRow && col == move->toCol)
         continue;
 
       // Check if this is the same type of piece

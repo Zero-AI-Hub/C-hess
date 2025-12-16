@@ -132,6 +132,8 @@ typedef struct {
 //==============================================================================
 
 #define OPPONENT_COLOR(c) ((c) == COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE)
+#define INVALID_POS ((Position){-1, -1})
+#define EMPTY_SQUARE ((Piece){PIECE_NONE, COLOR_NONE, false})
 
 //==============================================================================
 // MOVEMENT PATTERNS (defined in constants.c)

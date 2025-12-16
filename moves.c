@@ -190,14 +190,13 @@ void MovePiece(int toRow, int toCol) {
   // Save and reset en passant state
   Position oldEnPassantTarget = enPassantTarget;
   Position oldEnPassantPawn = enPassantPawn;
-  enPassantTarget = (Position){-1, -1};
-  enPassantPawn = (Position){-1, -1};
+  enPassantTarget = INVALID_POS;
+  enPassantPawn = INVALID_POS;
 
   // Handle en passant capture: remove the captured pawn
   if (piece.type == PIECE_PAWN && toRow == oldEnPassantTarget.row &&
       toCol == oldEnPassantTarget.col) {
-    board[oldEnPassantPawn.row][oldEnPassantPawn.col] =
-        (Piece){PIECE_NONE, COLOR_NONE, false};
+    board[oldEnPassantPawn.row][oldEnPassantPawn.col] = EMPTY_SQUARE;
   }
 
   // Handle castling: move the rook alongside the king
@@ -206,12 +205,12 @@ void MovePiece(int toRow, int toCol) {
       // Kingside castling - move rook from h-file to f-file
       board[fromRow][5] = board[fromRow][7];
       board[fromRow][5].hasMoved = true;
-      board[fromRow][7] = (Piece){PIECE_NONE, COLOR_NONE, false};
+      board[fromRow][7] = EMPTY_SQUARE;
     } else {
       // Queenside castling - move rook from a-file to d-file
       board[fromRow][3] = board[fromRow][0];
       board[fromRow][3].hasMoved = true;
-      board[fromRow][0] = (Piece){PIECE_NONE, COLOR_NONE, false};
+      board[fromRow][0] = EMPTY_SQUARE;
     }
   }
 
@@ -224,7 +223,7 @@ void MovePiece(int toRow, int toCol) {
   // Execute the move
   board[toRow][toCol] = piece;
   board[toRow][toCol].hasMoved = true;
-  board[fromRow][fromCol] = (Piece){PIECE_NONE, COLOR_NONE, false};
+  board[fromRow][fromCol] = EMPTY_SQUARE;
 
   // Check for pawn promotion
   if (piece.type == PIECE_PAWN &&
@@ -235,7 +234,7 @@ void MovePiece(int toRow, int toCol) {
     promotionWasCapture = isCapture;
     promotionPos = (Position){toRow, toCol};
     gameState = GAME_PROMOTING;
-    selectedPos = (Position){-1, -1};
+    selectedPos = INVALID_POS;
     ClearValidMoves();
     return;
   }
@@ -250,7 +249,7 @@ void MovePiece(int toRow, int toCol) {
 
   // Switch turns and update game state
   currentTurn = OPPONENT_COLOR(currentTurn);
-  selectedPos = (Position){-1, -1};
+  selectedPos = INVALID_POS;
   ClearValidMoves();
   UpdateGameState();
 

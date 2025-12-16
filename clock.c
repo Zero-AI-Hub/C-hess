@@ -114,19 +114,17 @@ void SwitchClock(PieceColor playerWhoMoved) {
 
   case CLOCK_BRONSTEIN: {
     // Add back time used, up to the delay amount
-    float timeUsed =
-        gameClock.moveStartTime - (playerWhoMoved == COLOR_WHITE
-                                       ? gameClock.whiteTimeRemaining
-                                       : gameClock.blackTimeRemaining);
+    float currentTime = (playerWhoMoved == COLOR_WHITE)
+                            ? gameClock.whiteTimeRemaining
+                            : gameClock.blackTimeRemaining;
+    float timeUsed = gameClock.moveStartTime - currentTime;
 
     // Clamp to increment amount (can't add more than delay)
-    float timeToAdd = timeUsed;
-    if (timeToAdd > gameClock.incrementSeconds) {
-      timeToAdd = gameClock.incrementSeconds;
-    }
-    if (timeToAdd < 0) {
+    float timeToAdd = (timeUsed > gameClock.incrementSeconds)
+                          ? gameClock.incrementSeconds
+                          : timeUsed;
+    if (timeToAdd < 0)
       timeToAdd = 0;
-    }
 
     if (playerWhoMoved == COLOR_WHITE) {
       gameClock.whiteTimeRemaining += timeToAdd;
@@ -134,10 +132,10 @@ void SwitchClock(PieceColor playerWhoMoved) {
       gameClock.blackTimeRemaining += timeToAdd;
     }
 
-    // Store current time for next move's Bronstein calculation
-    gameClock.moveStartTime =
-        (playerWhoMoved == COLOR_WHITE ? gameClock.blackTimeRemaining
-                                       : gameClock.whiteTimeRemaining);
+    // Store opponent's current time for next move's Bronstein calculation
+    gameClock.moveStartTime = (playerWhoMoved == COLOR_WHITE)
+                                  ? gameClock.blackTimeRemaining
+                                  : gameClock.whiteTimeRemaining;
     break;
   }
 

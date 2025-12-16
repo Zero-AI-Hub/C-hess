@@ -51,19 +51,19 @@ void InitBoard(void) {
 
   // Reset game state
   currentTurn = COLOR_WHITE;
-  selectedPos = (Position){-1, -1};
-  enPassantTarget = (Position){-1, -1};
-  enPassantPawn = (Position){-1, -1};
+  selectedPos = INVALID_POS;
+  enPassantTarget = INVALID_POS;
+  enPassantPawn = INVALID_POS;
   gameState = GAME_PLAYING;
 
   // Reset drag state
   isDragging = false;
-  dragStartPos = (Position){-1, -1};
+  dragStartPos = INVALID_POS;
   dragOffset = (Vector2){0, 0};
 
   // Reset promotion state
-  promotionPos = (Position){-1, -1};
-  promotionFromPos = (Position){-1, -1};
+  promotionPos = INVALID_POS;
+  promotionFromPos = INVALID_POS;
   promotionWasCapture = false;
 
   InitMoveHistory();
@@ -96,5 +96,5 @@ Position FindKing(PieceColor color) {
       }
     }
   }
-  return (Position){-1, -1};
+  return INVALID_POS;
 }

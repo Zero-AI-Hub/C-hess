@@ -308,100 +308,61 @@ void DrawMoveHistory(void) {
   }
 }
 
-void DrawClocks(void) {
-  if (!IsClockEnabled()) {
-    return;
+// Helper to draw a single clock panel
+static void DrawSingleClock(int x, int y, int width, int height,
+                            const char *label, const char *timeStr, float time,
+                            bool isActive, bool flashOn) {
+  Color bgColor = COLOR_PANEL_BG;
+  Color textColor = WHITE;
+  Color borderColor = WHITE;
+
+  if (isActive) {
+    bgColor = (Color){60, 60, 80, 255};
+    borderColor = COLOR_TITLE_GOLD;
   }
 
-  // Position clocks in the right panel area - above and below the history panel
+  if (time < CLOCK_CRITICAL_TIME_THRESHOLD && flashOn) {
+    bgColor = (Color){150, 50, 50, 255};
+  } else if (time < CLOCK_LOW_TIME_THRESHOLD) {
+    bgColor = (Color){100, 40, 40, 255};
+  }
+
+  DrawRectangle(x, y, width, height, bgColor);
+  DrawRectangleLinesEx((Rectangle){x, y, width, height}, 2, borderColor);
+
+  DrawText(label, x + 10, y + 5, FONT_SIZE_SMALL, GRAY);
+
+  int timeWidth = MeasureText(timeStr, FONT_SIZE_LARGE);
+  DrawText(timeStr, x + (width - timeWidth) / 2,
+           y + (height - FONT_SIZE_LARGE) / 2 + 5, FONT_SIZE_LARGE, textColor);
+}
+
+void DrawClocks(void) {
+  if (!IsClockEnabled())
+    return;
+
   int clockX = BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE + 20;
   int clockWidth = HISTORY_PANEL_WIDTH - 30;
   int clockHeight = CLOCK_PANEL_HEIGHT;
-
-  // Black's clock at top of the right panel area
   int blackClockY = BOARD_OFFSET_Y;
-  // White's clock at bottom of the right panel area
   int whiteClockY = BOARD_OFFSET_Y + BOARD_SIZE * TILE_SIZE - clockHeight;
 
-  // Get time values
   float whiteTime = GetPlayerTime(COLOR_WHITE);
   float blackTime = GetPlayerTime(COLOR_BLACK);
 
-  char whiteTimeStr[16];
-  char blackTimeStr[16];
+  char whiteTimeStr[16], blackTimeStr[16];
   FormatTime(whiteTime, whiteTimeStr);
   FormatTime(blackTime, blackTimeStr);
 
-  // Helper to determine clock colors
-  bool whiteActive = gameClock.isRunning && currentTurn == COLOR_WHITE;
-  bool blackActive = gameClock.isRunning && currentTurn == COLOR_BLACK;
-
-  // Flashing effect for critical time
   bool flashOn = ((int)(GetTime() * 4) % 2 == 0);
 
-  // Draw Black's clock
-  {
-    Color bgColor = COLOR_PANEL_BG;
-    Color textColor = WHITE;
-    Color borderColor = WHITE;
+  DrawSingleClock(clockX, blackClockY, clockWidth, clockHeight, "Black",
+                  blackTimeStr, blackTime,
+                  gameClock.isRunning && currentTurn == COLOR_BLACK, flashOn);
 
-    if (blackActive) {
-      bgColor = (Color){60, 60, 80, 255}; // Highlighted
-      borderColor = COLOR_TITLE_GOLD;
-    }
-
-    if (blackTime < CLOCK_CRITICAL_TIME_THRESHOLD && flashOn) {
-      bgColor = (Color){150, 50, 50, 255}; // Flashing red
-    } else if (blackTime < CLOCK_LOW_TIME_THRESHOLD) {
-      bgColor = (Color){100, 40, 40, 255}; // Low time warning
-    }
-
-    DrawRectangle(clockX, blackClockY, clockWidth, clockHeight, bgColor);
-    DrawRectangleLinesEx(
-        (Rectangle){clockX, blackClockY, clockWidth, clockHeight}, 2,
-        borderColor);
-
-    // Draw "Black" label
-    DrawText("Black", clockX + 10, blackClockY + 5, FONT_SIZE_SMALL, GRAY);
-
-    // Draw time
-    int timeWidth = MeasureText(blackTimeStr, FONT_SIZE_LARGE);
-    DrawText(blackTimeStr, clockX + (clockWidth - timeWidth) / 2,
-             blackClockY + (clockHeight - FONT_SIZE_LARGE) / 2 + 5,
-             FONT_SIZE_LARGE, textColor);
-  }
-
-  // Draw White's clock
-  {
-    Color bgColor = COLOR_PANEL_BG;
-    Color textColor = WHITE;
-    Color borderColor = WHITE;
-
-    if (whiteActive) {
-      bgColor = (Color){60, 60, 80, 255}; // Highlighted
-      borderColor = COLOR_TITLE_GOLD;
-    }
-
-    if (whiteTime < CLOCK_CRITICAL_TIME_THRESHOLD && flashOn) {
-      bgColor = (Color){150, 50, 50, 255}; // Flashing red
-    } else if (whiteTime < CLOCK_LOW_TIME_THRESHOLD) {
-      bgColor = (Color){100, 40, 40, 255}; // Low time warning
-    }
-
-    DrawRectangle(clockX, whiteClockY, clockWidth, clockHeight, bgColor);
-    DrawRectangleLinesEx(
-        (Rectangle){clockX, whiteClockY, clockWidth, clockHeight}, 2,
-        borderColor);
-
-    // Draw "White" label
-    DrawText("White", clockX + 10, whiteClockY + 5, FONT_SIZE_SMALL, GRAY);
-
-    // Draw time
-    int timeWidth = MeasureText(whiteTimeStr, FONT_SIZE_LARGE);
-    DrawText(whiteTimeStr, clockX + (clockWidth - timeWidth) / 2,
-             whiteClockY + (clockHeight - FONT_SIZE_LARGE) / 2 + 5,
-             FONT_SIZE_LARGE, textColor);
-  }
+  DrawSingleClock(clockX, whiteClockY, clockWidth, clockHeight, "White",
+                  whiteTimeStr, whiteTime,
+                  gameClock.isRunning && currentTurn == COLOR_WHITE, flashOn);
 }
 
 void DrawPromotionUI(void) {
@@ -484,11 +445,14 @@ void DrawGameOverScreen(void) {
 void HandleInput(void) {
   if (IsKeyPressed(KEY_R)) {
     InitBoard();
+    InitClock();
+    StartClock();
     isDragging = false;
     return;
   }
 
-  if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
+  if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE ||
+      gameState == GAME_TIMEOUT) {
     return;
   }
 
@@ -520,7 +484,7 @@ void HandleInput(void) {
         MovePiece(row, col);
       } else {
         // Deselect
-        selectedPos = (Position){-1, -1};
+        selectedPos = INVALID_POS;
         ClearValidMoves();
       }
     }
@@ -535,7 +499,7 @@ void HandleInput(void) {
         MovePiece(row, col);
       } else if (row != dragStartPos.row || col != dragStartPos.col) {
         // Invalid drop - deselect
-        selectedPos = (Position){-1, -1};
+        selectedPos = INVALID_POS;
         ClearValidMoves();
       }
       // If dropped on same square, keep selected
@@ -577,8 +541,8 @@ void HandlePromotion(void) {
       // Switch turns and update game state
       currentTurn = OPPONENT_COLOR(currentTurn);
       gameState = GAME_PLAYING;
-      promotionPos = (Position){-1, -1};
-      promotionFromPos = (Position){-1, -1};
+      promotionPos = INVALID_POS;
+      promotionFromPos = INVALID_POS;
       UpdateGameState();
 
       // Update move history with check/checkmate status
