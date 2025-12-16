@@ -57,6 +57,9 @@ static const Color COLOR_OVERLAY_DARK = {0, 0, 0, 150};
 static const Color COLOR_OVERLAY_DARKER = {0, 0, 0, 180};
 static const Color COLOR_PANEL_BG = {60, 60, 60, 255};
 static const Color COLOR_BUTTON_BG = {100, 100, 100, 255};
+static const Color COLOR_BUTTON_HOVER = {130, 130, 130, 255};
+static const Color COLOR_TITLE_GOLD = {255, 215, 0, 255};
+static const Color COLOR_TITLE_SHADOW = {80, 60, 0, 255};
 
 //==============================================================================
 // MOVEMENT PATTERNS (shared across multiple functions)
@@ -102,10 +105,25 @@ typedef enum {
   GAME_PROMOTING
 } GameState;
 
+// Screen state for menu navigation
+typedef enum { SCREEN_TITLE, SCREEN_GAME, SCREEN_OPTIONS } ScreenState;
+
 // Helper struct for UI panel layouts
 typedef struct {
   int x, y, width, height;
 } PanelLayout;
+
+// Floating piece for title screen animation
+#define MAX_FLOATING_PIECES 12
+typedef struct {
+  float x, y;
+  float speedX, speedY;
+  float rotation;
+  float rotSpeed;
+  PieceType type;
+  PieceColor color;
+  float alpha;
+} FloatingPiece;
 
 //==============================================================================
 // GLOBAL STATE
@@ -116,6 +134,10 @@ static PieceColor currentTurn = COLOR_WHITE;
 static Position selectedPos = {-1, -1};
 static bool validMoves[BOARD_SIZE][BOARD_SIZE];
 static GameState gameState = GAME_PLAYING;
+static ScreenState currentScreen = SCREEN_TITLE;
+
+// Title screen animation
+static FloatingPiece floatingPieces[MAX_FLOATING_PIECES];
 
 // En passant tracking:
 // - enPassantTarget: the "ghost" square where pawn can be captured
@@ -184,6 +206,17 @@ static void UpdateGameState(void);
 // UI helpers
 static PanelLayout GetPromotionPanelLayout(void);
 
+// Menu screens
+static void InitFloatingPieces(void);
+static void UpdateFloatingPieces(void);
+static void DrawFloatingPieces(void);
+static void DrawTitleScreen(void);
+static void HandleTitleInput(void);
+static void DrawOptionsScreen(void);
+static void HandleOptionsInput(void);
+static bool DrawMenuButton(int x, int y, int width, int height,
+                           const char *text);
+
 //==============================================================================
 // MAIN
 //==============================================================================
@@ -193,33 +226,67 @@ int main(void) {
   SetTargetFPS(60);
 
   LoadPiecesTexture();
+  InitFloatingPieces();
   InitBoard();
 
   while (!WindowShouldClose()) {
-    // Handle game state-specific input
-    if (gameState == GAME_PROMOTING) {
-      HandlePromotion();
-    } else if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
-      if (IsKeyPressed(KEY_R)) {
-        InitBoard();
+    // Update and handle input based on current screen
+    switch (currentScreen) {
+    case SCREEN_TITLE:
+      UpdateFloatingPieces();
+      HandleTitleInput();
+      break;
+
+    case SCREEN_OPTIONS:
+      UpdateFloatingPieces();
+      HandleOptionsInput();
+      break;
+
+    case SCREEN_GAME:
+      if (gameState == GAME_PROMOTING) {
+        HandlePromotion();
+      } else if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
+        if (IsKeyPressed(KEY_R)) {
+          InitBoard();
+        }
+        if (IsKeyPressed(KEY_ESCAPE)) {
+          currentScreen = SCREEN_TITLE;
+        }
+      } else {
+        HandleInput();
+        if (IsKeyPressed(KEY_ESCAPE)) {
+          currentScreen = SCREEN_TITLE;
+        }
       }
-    } else {
-      HandleInput();
+      break;
     }
 
-    // Render
+    // Render based on current screen
     BeginDrawing();
     ClearBackground(COLOR_BACKGROUND);
 
-    DrawBoard();
-    DrawValidMoves();
-    DrawPieces();
-    DrawUI();
+    switch (currentScreen) {
+    case SCREEN_TITLE:
+      DrawTitleScreen();
+      break;
 
-    if (gameState == GAME_PROMOTING) {
-      DrawPromotionUI();
-    } else if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
-      DrawGameOverScreen();
+    case SCREEN_OPTIONS:
+      DrawTitleScreen();
+      DrawOptionsScreen();
+      break;
+
+    case SCREEN_GAME:
+      DrawBoard();
+      DrawValidMoves();
+      DrawPieces();
+      DrawUI();
+
+      if (gameState == GAME_PROMOTING) {
+        DrawPromotionUI();
+      } else if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE) {
+        DrawGameOverScreen();
+      }
+      break;
     }
 
     EndDrawing();
@@ -989,5 +1056,212 @@ static void UpdateGameState(void) {
     gameState = inCheck ? GAME_CHECKMATE : GAME_STALEMATE;
   } else {
     gameState = inCheck ? GAME_CHECK : GAME_PLAYING;
+  }
+}
+
+//==============================================================================
+// MENU SCREENS
+//==============================================================================
+
+/**
+ * Initialize floating pieces for title screen animation.
+ */
+static void InitFloatingPieces(void) {
+  PieceType types[] = {PIECE_KING,   PIECE_QUEEN,  PIECE_ROOK,
+                       PIECE_BISHOP, PIECE_KNIGHT, PIECE_PAWN};
+
+  for (int i = 0; i < MAX_FLOATING_PIECES; i++) {
+    floatingPieces[i].x = GetRandomValue(0, WINDOW_WIDTH);
+    floatingPieces[i].y = GetRandomValue(0, WINDOW_HEIGHT);
+    floatingPieces[i].speedX = (GetRandomValue(-20, 20)) / 10.0f;
+    floatingPieces[i].speedY = (GetRandomValue(-20, 20)) / 10.0f;
+    floatingPieces[i].rotation = GetRandomValue(0, 360);
+    floatingPieces[i].rotSpeed = (GetRandomValue(-30, 30)) / 10.0f;
+    floatingPieces[i].type = types[GetRandomValue(0, 5)];
+    floatingPieces[i].color = (i % 2 == 0) ? COLOR_WHITE : COLOR_BLACK;
+    floatingPieces[i].alpha = 0.15f + (GetRandomValue(0, 15)) / 100.0f;
+  }
+}
+
+/**
+ * Update floating piece positions and rotations.
+ */
+static void UpdateFloatingPieces(void) {
+  for (int i = 0; i < MAX_FLOATING_PIECES; i++) {
+    floatingPieces[i].x += floatingPieces[i].speedX;
+    floatingPieces[i].y += floatingPieces[i].speedY;
+    floatingPieces[i].rotation += floatingPieces[i].rotSpeed;
+
+    // Wrap around screen edges
+    if (floatingPieces[i].x < -SPRITE_SIZE)
+      floatingPieces[i].x = WINDOW_WIDTH + SPRITE_SIZE;
+    if (floatingPieces[i].x > WINDOW_WIDTH + SPRITE_SIZE)
+      floatingPieces[i].x = -SPRITE_SIZE;
+    if (floatingPieces[i].y < -SPRITE_SIZE)
+      floatingPieces[i].y = WINDOW_HEIGHT + SPRITE_SIZE;
+    if (floatingPieces[i].y > WINDOW_HEIGHT + SPRITE_SIZE)
+      floatingPieces[i].y = -SPRITE_SIZE;
+  }
+}
+
+/**
+ * Draw floating pieces as background decoration.
+ */
+static void DrawFloatingPieces(void) {
+  for (int i = 0; i < MAX_FLOATING_PIECES; i++) {
+    Rectangle src =
+        GetSpriteRect(floatingPieces[i].type, floatingPieces[i].color);
+    Rectangle dest = {floatingPieces[i].x, floatingPieces[i].y,
+                      SPRITE_SIZE * 1.5f, SPRITE_SIZE * 1.5f};
+    Vector2 origin = {SPRITE_SIZE * 0.75f, SPRITE_SIZE * 0.75f};
+
+    unsigned char alpha = (unsigned char)(floatingPieces[i].alpha * 255);
+    Color tint = {255, 255, 255, alpha};
+
+    DrawTexturePro(piecesTexture, src, dest, origin, floatingPieces[i].rotation,
+                   tint);
+  }
+}
+
+/**
+ * Draw a menu button and return true if clicked.
+ */
+static bool DrawMenuButton(int x, int y, int width, int height,
+                           const char *text) {
+  Vector2 mouse = GetMousePosition();
+  Rectangle rect = {x, y, width, height};
+  bool hover = CheckCollisionPointRec(mouse, rect);
+  bool clicked = hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+  // Button background with hover effect
+  Color bgColor = hover ? COLOR_BUTTON_HOVER : COLOR_BUTTON_BG;
+  DrawRectangle(x, y, width, height, bgColor);
+  DrawRectangleLinesEx(rect, 2, WHITE);
+
+  // Centered text
+  int textWidth = MeasureText(text, FONT_SIZE_LARGE);
+  int textX = x + (width - textWidth) / 2;
+  int textY = y + (height - FONT_SIZE_LARGE) / 2;
+  DrawText(text, textX, textY, FONT_SIZE_LARGE, WHITE);
+
+  return clicked;
+}
+
+/**
+ * Draw the title screen with animated background and menu buttons.
+ */
+static void DrawTitleScreen(void) {
+  // Draw decorative checkerboard pattern (faded)
+  for (int row = 0; row < 10; row++) {
+    for (int col = 0; col < 10; col++) {
+      int x = col * TILE_SIZE;
+      int y = row * TILE_SIZE;
+      unsigned char alpha = ((row + col) % 2 == 0) ? 15 : 25;
+      Color squareColor = {100, 80, 60, alpha};
+      DrawRectangle(x, y, TILE_SIZE, TILE_SIZE, squareColor);
+    }
+  }
+
+  // Draw floating pieces
+  DrawFloatingPieces();
+
+  // Title shadow
+  const char *title = "CHESS";
+  int titleWidth = MeasureText(title, 80);
+  int titleX = (WINDOW_WIDTH - titleWidth) / 2;
+  int titleY = 80;
+
+  DrawText(title, titleX + 4, titleY + 4, 80, COLOR_TITLE_SHADOW);
+  DrawText(title, titleX, titleY, 80, COLOR_TITLE_GOLD);
+
+  // Decorative line under title
+  DrawRectangle(titleX - 20, titleY + 90, titleWidth + 40, 4, COLOR_TITLE_GOLD);
+
+  // Menu buttons
+  int buttonWidth = 200;
+  int buttonHeight = 50;
+  int buttonX = (WINDOW_WIDTH - buttonWidth) / 2;
+  int buttonY = 220;
+
+  if (DrawMenuButton(buttonX, buttonY, buttonWidth, buttonHeight, "PLAY")) {
+    InitBoard();
+    currentScreen = SCREEN_GAME;
+  }
+
+  if (DrawMenuButton(buttonX, buttonY + 70, buttonWidth, buttonHeight,
+                     "OPTIONS")) {
+    currentScreen = SCREEN_OPTIONS;
+  }
+
+  // Footer text
+  const char *footer = "Press ESC during game to return";
+  int footerWidth = MeasureText(footer, FONT_SIZE_SMALL);
+  DrawText(footer, (WINDOW_WIDTH - footerWidth) / 2, WINDOW_HEIGHT - 40,
+           FONT_SIZE_SMALL, GRAY);
+}
+
+/**
+ * Handle title screen input.
+ */
+static void HandleTitleInput(void) {
+  // Button clicks are handled in DrawMenuButton via IsMouseButtonPressed
+  // This function is for any additional keyboard shortcuts
+}
+
+/**
+ * Draw the options overlay on top of title screen.
+ */
+static void DrawOptionsScreen(void) {
+  // Darken background
+  DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_OVERLAY_DARK);
+
+  // Options panel
+  int panelWidth = 350;
+  int panelHeight = 300;
+  int panelX = (WINDOW_WIDTH - panelWidth) / 2;
+  int panelY = (WINDOW_HEIGHT - panelHeight) / 2;
+
+  DrawRectangle(panelX, panelY, panelWidth, panelHeight, COLOR_PANEL_BG);
+  DrawRectangleLinesEx((Rectangle){panelX, panelY, panelWidth, panelHeight}, 3,
+                       WHITE);
+
+  // Title
+  const char *optionsTitle = "OPTIONS";
+  int titleWidth = MeasureText(optionsTitle, FONT_SIZE_TITLE);
+  DrawText(optionsTitle, panelX + (panelWidth - titleWidth) / 2, panelY + 20,
+           FONT_SIZE_TITLE, WHITE);
+
+  // Placeholder content
+  const char *placeholder = "Settings coming soon...";
+  int placeholderWidth = MeasureText(placeholder, FONT_SIZE_MEDIUM);
+  DrawText(placeholder, panelX + (panelWidth - placeholderWidth) / 2,
+           panelY + 100, FONT_SIZE_MEDIUM, GRAY);
+
+  // Controls info
+  DrawText("Controls:", panelX + 30, panelY + 150, FONT_SIZE_SMALL, WHITE);
+  DrawText("- Click/drag to move pieces", panelX + 30, panelY + 175,
+           FONT_SIZE_SMALL, LIGHTGRAY);
+  DrawText("- Press R to restart game", panelX + 30, panelY + 195,
+           FONT_SIZE_SMALL, LIGHTGRAY);
+  DrawText("- Press ESC to return to menu", panelX + 30, panelY + 215,
+           FONT_SIZE_SMALL, LIGHTGRAY);
+
+  // Back button
+  int buttonWidth = 150;
+  int buttonHeight = 40;
+  int buttonX = panelX + (panelWidth - buttonWidth) / 2;
+  int buttonY = panelY + panelHeight - 60;
+
+  if (DrawMenuButton(buttonX, buttonY, buttonWidth, buttonHeight, "BACK")) {
+    currentScreen = SCREEN_TITLE;
+  }
+}
+
+/**
+ * Handle options screen input.
+ */
+static void HandleOptionsInput(void) {
+  if (IsKeyPressed(KEY_ESCAPE)) {
+    currentScreen = SCREEN_TITLE;
   }
 }
