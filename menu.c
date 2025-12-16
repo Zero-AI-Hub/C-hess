@@ -488,8 +488,7 @@ static void TruncateTextToWidth(const char *text, int maxWidth, int fontSize,
                                 char *output, int outputSize) {
   int textWidth = MeasureText(text, fontSize);
   if (textWidth <= maxWidth) {
-    strncpy(output, text, outputSize - 1);
-    output[outputSize - 1] = '\0';
+    snprintf(output, outputSize, "%s", text);
     return;
   }
 
@@ -526,10 +525,13 @@ static void TruncateTextToWidth(const char *text, int maxWidth, int fontSize,
     snprintf(output, outputSize, "%.*s...%s", startChars, text,
              text + textLen - endChars);
   } else {
-    // Fallback: just truncate start
-    strncpy(output, text, outputSize - 4);
-    output[outputSize - 4] = '\0';
-    strcat(output, "...");
+    // Fallback: just truncate start with ellipsis
+    int maxChars = outputSize - 4;
+    if (maxChars > 0) {
+      snprintf(output, outputSize, "%.*s...", maxChars, text);
+    } else {
+      output[0] = '\0';
+    }
   }
 }
 

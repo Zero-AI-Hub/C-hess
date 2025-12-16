@@ -27,6 +27,10 @@ Vector2 dragOffset = {0, 0};
 Position promotionFromPos = {-1, -1};
 bool promotionWasCapture = false;
 
+// Cached king positions for optimization
+Position whiteKingPos = {7, 4};
+Position blackKingPos = {0, 4};
+
 //==============================================================================
 // BOARD INITIALIZATION
 //==============================================================================
@@ -66,6 +70,10 @@ void InitBoard(void) {
   promotionFromPos = INVALID_POS;
   promotionWasCapture = false;
 
+  // Reset cached king positions
+  whiteKingPos = (Position){7, 4};
+  blackKingPos = (Position){0, 4};
+
   InitMoveHistory();
 }
 
@@ -88,13 +96,6 @@ bool IsAlly(int row, int col, PieceColor color) {
 }
 
 Position FindKing(PieceColor color) {
-  for (int row = 0; row < BOARD_SIZE; row++) {
-    for (int col = 0; col < BOARD_SIZE; col++) {
-      if (board[row][col].type == PIECE_KING &&
-          board[row][col].color == color) {
-        return (Position){row, col};
-      }
-    }
-  }
-  return INVALID_POS;
+  // Return cached position for optimization
+  return (color == COLOR_WHITE) ? whiteKingPos : blackKingPos;
 }

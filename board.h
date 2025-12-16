@@ -25,6 +25,8 @@ extern Position dragStartPos;
 extern Vector2 dragOffset;
 extern Position promotionFromPos;
 extern bool promotionWasCapture;
+extern Position whiteKingPos;
+extern Position blackKingPos;
 
 //==============================================================================
 // BOARD FUNCTIONS

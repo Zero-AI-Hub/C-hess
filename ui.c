@@ -9,6 +9,7 @@
 #include "clock.h"
 #include "history.h"
 #include "moves.h"
+#include "multiplayer.h"
 #include <stdio.h>
 
 //==============================================================================
@@ -533,6 +534,10 @@ void HandlePromotion(void) {
       RecordMove(promotionFromPos.row, promotionFromPos.col, promotionPos.row,
                  promotionPos.col, PIECE_PAWN, pieceColor, promotionWasCapture,
                  false, false, false, true, options[i]);
+
+      // Send move to remote player in multiplayer (with promotion piece type)
+      HandleLocalMove(promotionFromPos.row, promotionFromPos.col,
+                      promotionPos.row, promotionPos.col, options[i]);
 
       // Switch clock before changing turn (applies increment to player who
       // moved)

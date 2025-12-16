@@ -226,6 +226,15 @@ void MovePiece(int toRow, int toCol) {
   board[toRow][toCol].hasMoved = true;
   board[fromRow][fromCol] = EMPTY_SQUARE;
 
+  // Update cached king position if king moved
+  if (piece.type == PIECE_KING) {
+    if (piece.color == COLOR_WHITE) {
+      whiteKingPos = (Position){toRow, toCol};
+    } else {
+      blackKingPos = (Position){toRow, toCol};
+    }
+  }
+
   // Check for pawn promotion
   if (piece.type == PIECE_PAWN &&
       ((piece.color == COLOR_WHITE && toRow == 0) ||
@@ -245,8 +254,11 @@ void MovePiece(int toRow, int toCol) {
              isCastleKingside, isCastleQueenside, isEnPassantCapture, false,
              PIECE_NONE);
 
-  // Send move to remote player in multiplayer
-  HandleLocalMove(fromRow, fromCol, toRow, toCol, 0);
+  // Send move to remote player in multiplayer (skip if promotion - sent after
+  // choice)
+  if (gameState != GAME_PROMOTING) {
+    HandleLocalMove(fromRow, fromCol, toRow, toCol, 0);
+  }
 
   // Switch clock before changing turn (applies increment to player who moved)
   SwitchClock(piece.color);

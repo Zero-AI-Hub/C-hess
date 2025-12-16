@@ -156,10 +156,21 @@ static void on_gathering_done(juice_agent_t *agent, void *user_ptr) {
   char sdp[JUICE_MAX_SDP_STRING_LEN];
   juice_get_local_description(agent, sdp, sizeof(sdp));
 
-  // Combine SDP with candidates
+  // Combine SDP with candidates - truncate if too long
   char fullDesc[NET_CODE_MAX_LEN];
-  snprintf(fullDesc, sizeof(fullDesc), "%s\n---CANDIDATES---\n%s", sdp,
-           pendingCandidates);
+  size_t sdpLen = strlen(sdp);
+  size_t sepLen = strlen("\n---CANDIDATES---\n");
+  size_t candLen = strlen(pendingCandidates);
+  size_t maxCandLen = sizeof(fullDesc) - sdpLen - sepLen - 1;
+
+  if (candLen > maxCandLen) {
+    printf("[Network] Warning: candidates truncated (%zu > %zu)\n", candLen,
+           maxCandLen);
+    candLen = maxCandLen;
+  }
+
+  snprintf(fullDesc, sizeof(fullDesc), "%s\n---CANDIDATES---\n%.*s", sdp,
+           (int)candLen, pendingCandidates);
 
   // Encode as base64 for easy copy/paste
   if (isHost) {

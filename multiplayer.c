@@ -126,17 +126,22 @@ void ProcessRemoteMove(int fromRow, int fromCol, int toRow, int toCol,
 
     // Handle promotion if needed
     if (gameState == GAME_PROMOTING && promotionPiece > 0) {
-      // Apply the promotion
+      // Apply the promotion (turn hasn't switched yet during GAME_PROMOTING)
       board[toRow][toCol].type = (PieceType)promotionPiece;
 
-      // Record the move with promotion
-      RecordMove(fromRow, fromCol, toRow, toCol, PIECE_PAWN,
-                 OPPONENT_COLOR(currentTurn), true, false, false, false, true,
+      // Record the move with promotion (MovePiece returned early without
+      // recording)
+      PieceColor promoteColor = currentTurn;
+      RecordMove(fromRow, fromCol, toRow, toCol, PIECE_PAWN, promoteColor,
+                 promotionWasCapture, false, false, false, true,
                  (PieceType)promotionPiece);
 
-      // Complete the turn
-      SwitchClock(OPPONENT_COLOR(currentTurn));
+      // Complete the turn - switch clock and update state
+      SwitchClock(promoteColor);
+      currentTurn = OPPONENT_COLOR(currentTurn);
       gameState = GAME_PLAYING;
+      promotionPos = INVALID_POS;
+      promotionFromPos = INVALID_POS;
       UpdateGameState();
       UpdateLastMoveStatus(gameState == GAME_CHECK ||
                                gameState == GAME_CHECKMATE,
