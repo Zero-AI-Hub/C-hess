@@ -103,9 +103,11 @@ bool DrawMenuButton(int x, int y, int width, int height, const char *text) {
 //==============================================================================
 
 void DrawTitleScreen(void) {
-  // Draw decorative checkerboard pattern (faded)
-  for (int row = 0; row < 10; row++) {
-    for (int col = 0; col < 10; col++) {
+  // Draw decorative checkerboard pattern (faded) covering full window
+  int cols = (WINDOW_WIDTH + TILE_SIZE - 1) / TILE_SIZE;
+  int rows = (WINDOW_HEIGHT + TILE_SIZE - 1) / TILE_SIZE;
+  for (int row = 0; row < rows; row++) {
+    for (int col = 0; col < cols; col++) {
       int x = col * TILE_SIZE;
       int y = row * TILE_SIZE;
       unsigned char alpha = ((row + col) % 2 == 0) ? 15 : 25;
@@ -187,13 +189,13 @@ void DrawOptionsScreen(void) {
            panelY + 100, FONT_SIZE_MEDIUM, GRAY);
 
   // Controls info
-  DrawText("Controls:", panelX + 30, panelY + 150, FONT_SIZE_SMALL, WHITE);
-  DrawText("- Click/drag to move pieces", panelX + 30, panelY + 175,
+  DrawText("Controls:", panelX + 25, panelY + 150, FONT_SIZE_SMALL, WHITE);
+  DrawText("- Click/drag to move pieces", panelX + 25, panelY + 175,
            FONT_SIZE_SMALL, LIGHTGRAY);
-  DrawText("- Press R to restart game", panelX + 30, panelY + 195,
-           FONT_SIZE_SMALL, LIGHTGRAY);
-  DrawText("- Press ESC to return to menu", panelX + 30, panelY + 215,
-           FONT_SIZE_SMALL, LIGHTGRAY);
+  DrawText("- Press R to restart", panelX + 25, panelY + 195, FONT_SIZE_SMALL,
+           LIGHTGRAY);
+  DrawText("- Press ESC for menu", panelX + 25, panelY + 215, FONT_SIZE_SMALL,
+           LIGHTGRAY);
 
   // Back button
   int buttonWidth = 150;
