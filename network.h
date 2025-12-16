@@ -132,4 +132,10 @@ void DisconnectNetwork(void);
  */
 const char *GetNetworkStatusString(void);
 
+/**
+ * Finalize guest connection after user has copied answer code.
+ * Called when guest clicks READY button.
+ */
+void FinalizeGuestConnection(void);
+
 #endif // NETWORK_H

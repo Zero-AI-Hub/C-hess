@@ -483,6 +483,56 @@ void HandleClockSetupInput(void) {
 static char inputBuffer[NET_CODE_MAX_LEN] = {0};
 static int inputCursor = 0;
 
+// Helper to truncate text to fit within a given pixel width
+static void TruncateTextToWidth(const char *text, int maxWidth, int fontSize,
+                                char *output, int outputSize) {
+  int textWidth = MeasureText(text, fontSize);
+  if (textWidth <= maxWidth) {
+    strncpy(output, text, outputSize - 1);
+    output[outputSize - 1] = '\0';
+    return;
+  }
+
+  // Need to truncate - show beginning...end
+  const char *ellipsis = "...";
+  int ellipsisWidth = MeasureText(ellipsis, fontSize);
+  int availableWidth = maxWidth - ellipsisWidth;
+
+  // Find how many chars from start fit in half the space
+  int halfWidth = availableWidth / 2;
+  int startChars = 0;
+  char temp[256];
+  for (int i = 1; i <= (int)strlen(text) && i < 100; i++) {
+    strncpy(temp, text, i);
+    temp[i] = '\0';
+    if (MeasureText(temp, fontSize) > halfWidth)
+      break;
+    startChars = i;
+  }
+
+  // Find how many chars from end fit in the other half
+  int textLen = strlen(text);
+  int endChars = 0;
+  for (int i = 1; i <= textLen && i < 100; i++) {
+    strncpy(temp, text + textLen - i, i);
+    temp[i] = '\0';
+    if (MeasureText(temp, fontSize) > halfWidth)
+      break;
+    endChars = i;
+  }
+
+  // Build the truncated string
+  if (startChars > 0 && endChars > 0) {
+    snprintf(output, outputSize, "%.*s...%s", startChars, text,
+             text + textLen - endChars);
+  } else {
+    // Fallback: just truncate start
+    strncpy(output, text, outputSize - 4);
+    output[outputSize - 4] = '\0';
+    strcat(output, "...");
+  }
+}
+
 // Helper to draw a text input field
 static void DrawTextInput(int x, int y, int width, int height,
                           const char *buffer, int cursor, const char *hint) {
@@ -493,28 +543,27 @@ static void DrawTextInput(int x, int y, int width, int height,
 
   // Draw text or hint
   int fontSize = FONT_SIZE_SMALL;
+  int padding = 10;
+  int maxTextWidth = width - padding * 2;
+
   if (strlen(buffer) > 0) {
-    // Truncate display if too long
-    char display[64];
-    int len = strlen(buffer);
-    if (len > 50) {
-      snprintf(display, sizeof(display), "%.25s...%.20s", buffer,
-               buffer + len - 20);
-    } else {
-      strncpy(display, buffer, sizeof(display) - 1);
-      display[sizeof(display) - 1] = '\0';
-    }
-    DrawText(display, x + 10, y + (height - fontSize) / 2, fontSize, WHITE);
+    // Truncate display to fit within box
+    char display[128];
+    TruncateTextToWidth(buffer, maxTextWidth, fontSize, display,
+                        sizeof(display));
+    DrawText(display, x + padding, y + (height - fontSize) / 2, fontSize,
+             WHITE);
   } else {
-    DrawText(hint, x + 10, y + (height - fontSize) / 2, fontSize, GRAY);
+    DrawText(hint, x + padding, y + (height - fontSize) / 2, fontSize, GRAY);
   }
 
-  // Draw cursor
-  if ((int)(GetTime() * 2) % 2 == 0) {
-    int textWidth = strlen(buffer) > 0 ? MeasureText(buffer, fontSize) : 0;
-    if (textWidth > width - 30)
-      textWidth = width - 30;
-    DrawRectangle(x + 10 + textWidth, y + 5, 2, height - 10, WHITE);
+  // Draw cursor at end of visible area
+  if ((int)(GetTime() * 2) % 2 == 0 && strlen(buffer) > 0) {
+    char display[128];
+    TruncateTextToWidth(buffer, maxTextWidth, fontSize, display,
+                        sizeof(display));
+    int displayWidth = MeasureText(display, fontSize);
+    DrawRectangle(x + padding + displayWidth + 2, y + 5, 2, height - 10, WHITE);
   }
 }
 
@@ -650,17 +699,14 @@ void DrawHostScreen(void) {
     DrawText("Your Offer Code:", contentX, contentY, FONT_SIZE_SMALL, WHITE);
     contentY += 25;
 
-    // Display truncated code
-    char displayCode[64];
-    int codeLen = strlen(localOfferCode);
-    if (codeLen > 50) {
-      snprintf(displayCode, sizeof(displayCode), "%.25s...%.20s",
-               localOfferCode, localOfferCode + codeLen - 20);
-    } else {
-      strncpy(displayCode, localOfferCode, sizeof(displayCode) - 1);
-      displayCode[sizeof(displayCode) - 1] = '\0';
-    }
-    DrawRectangle(contentX, contentY, panelWidth - 50, 30, DARKGRAY);
+    // Display truncated code to fit in box
+    int codeBoxWidth = panelWidth - 50;
+    char displayCode[128];
+    TruncateTextToWidth(localOfferCode, codeBoxWidth - 10, FONT_SIZE_SMALL,
+                        displayCode, sizeof(displayCode));
+    DrawRectangle(contentX, contentY, codeBoxWidth, 30, DARKGRAY);
+    DrawRectangleLinesEx((Rectangle){contentX, contentY, codeBoxWidth, 30}, 1,
+                         GRAY);
     DrawText(displayCode, contentX + 5, contentY + 5, FONT_SIZE_SMALL, WHITE);
     contentY += 35;
 
@@ -788,23 +834,25 @@ void DrawJoinScreen(void) {
     DrawText("Your Answer Code:", contentX, contentY, FONT_SIZE_SMALL, WHITE);
     contentY += 25;
 
-    // Display truncated code
-    char displayCode[64];
-    int codeLen = strlen(localAnswerCode);
-    if (codeLen > 50) {
-      snprintf(displayCode, sizeof(displayCode), "%.25s...%.20s",
-               localAnswerCode, localAnswerCode + codeLen - 20);
-    } else {
-      strncpy(displayCode, localAnswerCode, sizeof(displayCode) - 1);
-      displayCode[sizeof(displayCode) - 1] = '\0';
-    }
-    DrawRectangle(contentX, contentY, panelWidth - 50, 30, DARKGRAY);
+    // Display truncated code to fit in box
+    int codeBoxWidth = panelWidth - 50;
+    char displayCode[128];
+    TruncateTextToWidth(localAnswerCode, codeBoxWidth - 10, FONT_SIZE_SMALL,
+                        displayCode, sizeof(displayCode));
+    DrawRectangle(contentX, contentY, codeBoxWidth, 30, DARKGRAY);
+    DrawRectangleLinesEx((Rectangle){contentX, contentY, codeBoxWidth, 30}, 1,
+                         GRAY);
     DrawText(displayCode, contentX + 5, contentY + 5, FONT_SIZE_SMALL, WHITE);
     contentY += 35;
 
     // Copy button
     if (DrawMenuButton(contentX, contentY, 150, 35, "COPY CODE")) {
       SetClipboardText(localAnswerCode);
+    }
+
+    // READY button - user clicks after copying code and sending to host
+    if (DrawMenuButton(contentX + 170, contentY, 150, 35, "READY")) {
+      FinalizeGuestConnection();
     }
     contentY += 50;
 
@@ -815,8 +863,8 @@ void DrawJoinScreen(void) {
     DrawText("2. Send it to the host", contentX, contentY, FONT_SIZE_SMALL,
              LIGHTGRAY);
     contentY += 20;
-    DrawText("3. Wait for connection...", contentX, contentY, FONT_SIZE_SMALL,
-             LIGHTGRAY);
+    DrawText("3. Click READY when done", contentX, contentY, FONT_SIZE_SMALL,
+             COLOR_TITLE_GOLD);
   } else if (state == NET_FAILED) {
     DrawText("Connection failed!", contentX, contentY, FONT_SIZE_SMALL, RED);
     DrawText("Please try again.", contentX, contentY + 25, FONT_SIZE_SMALL,

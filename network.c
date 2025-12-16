@@ -25,6 +25,14 @@ static NetworkMoveCallback moveCallback = NULL;
 static char pendingCandidates[NET_CODE_MAX_LEN] = {0};
 static int candidateCount = 0;
 
+// Store offer code for guest - will apply AFTER local gathering completes
+static char storedOfferCode[NET_CODE_MAX_LEN] = {0};
+static bool hasStoredOfferCode = false;
+
+// Forward declaration
+static void parse_and_apply_code(const char *code, bool setRemote,
+                                 bool signalGatheringDone);
+
 //==============================================================================
 // BASE64 URL-SAFE ENCODING/DECODING
 //==============================================================================
@@ -158,14 +166,20 @@ static void on_gathering_done(juice_agent_t *agent, void *user_ptr) {
     base64_encode(fullDesc, strlen(fullDesc), localOfferCode,
                   sizeof(localOfferCode));
     networkState = NET_WAITING_ANSWER;
+    printf("[Network] Offer code generated, length: %zu\n",
+           strlen(localOfferCode));
   } else {
+    // Guest: generate our answer code
     base64_encode(fullDesc, strlen(fullDesc), localAnswerCode,
                   sizeof(localAnswerCode));
-    networkState = NET_WAITING_CONNECTION;
-  }
+    printf("[Network] Answer code generated, length: %zu\n",
+           strlen(localAnswerCode));
 
-  printf("[Network] Code generated, length: %zu\n",
-         isHost ? strlen(localOfferCode) : strlen(localAnswerCode));
+    // DON'T apply offer code here - wait for user to copy answer code first
+    // User will click READY button which calls FinalizeGuestConnection()
+    networkState = NET_WAITING_CONNECTION;
+    printf("[Network] Waiting for user to copy answer code and click READY\n");
+  }
 }
 
 static void on_recv(juice_agent_t *agent, const char *data, size_t size,
@@ -189,10 +203,13 @@ static void on_recv(juice_agent_t *agent, const char *data, size_t size,
 // HELPER FUNCTIONS
 //==============================================================================
 
-static void parse_and_apply_code(const char *code, bool setRemote) {
+static void parse_and_apply_code(const char *code, bool setRemote,
+                                 bool signalGatheringDone) {
   // Decode base64
   char decoded[NET_CODE_MAX_LEN];
   base64_decode(code, decoded, sizeof(decoded));
+
+  printf("[Network] Decoded code length: %zu\n", strlen(decoded));
 
   // Split SDP and candidates
   char *candidateSep = strstr(decoded, "\n---CANDIDATES---\n");
@@ -200,21 +217,38 @@ static void parse_and_apply_code(const char *code, bool setRemote) {
     *candidateSep = '\0';
     char *candidatesStr = candidateSep + strlen("\n---CANDIDATES---\n");
 
+    printf("[Network] SDP length: %zu, Candidates present: %s\n",
+           strlen(decoded), strlen(candidatesStr) > 0 ? "yes" : "no");
+
     // Set remote SDP
     if (setRemote && agent) {
-      juice_set_remote_description(agent, decoded);
+      int result = juice_set_remote_description(agent, decoded);
+      printf("[Network] Set remote description result: %d\n", result);
+
+      // Make a copy for strtok since it modifies the string
+      char candidatesCopy[NET_CODE_MAX_LEN];
+      strncpy(candidatesCopy, candidatesStr, sizeof(candidatesCopy) - 1);
+      candidatesCopy[sizeof(candidatesCopy) - 1] = '\0';
 
       // Add remote candidates
-      char *line = strtok(candidatesStr, "\n");
+      char *line = strtok(candidatesCopy, "\n");
       while (line) {
         if (strlen(line) > 0) {
+          printf("[Network] Adding remote candidate: %s\n", line);
           juice_add_remote_candidate(agent, line);
         }
         line = strtok(NULL, "\n");
       }
 
-      juice_set_remote_gathering_done(agent);
+      // Only signal remote gathering done if requested
+      // For guest, we delay this until AFTER our own gathering is complete
+      if (signalGatheringDone) {
+        printf("[Network] Signaling remote gathering done\n");
+        juice_set_remote_gathering_done(agent);
+      }
     }
+  } else {
+    printf("[Network] No candidate separator found in decoded data\n");
   }
 }
 
@@ -250,7 +284,8 @@ static void create_agent(void) {
 //==============================================================================
 
 void InitNetwork(void) {
-  juice_set_log_level(JUICE_LOG_LEVEL_WARN);
+  // Enable verbose logging for debugging
+  juice_set_log_level(JUICE_LOG_LEVEL_VERBOSE);
   networkState = NET_DISCONNECTED;
   agent = NULL;
   moveCallback = NULL;
@@ -259,6 +294,7 @@ void InitNetwork(void) {
   memset(pendingCandidates, 0, sizeof(pendingCandidates));
   candidateCount = 0;
   isHost = false;
+  printf("[Network] Network module initialized\n");
 }
 
 void ShutdownNetwork(void) {
@@ -284,6 +320,8 @@ void CreateHostSession(void) {
 }
 
 void JoinSession(const char *offerCode) {
+  printf("[Network] JoinSession called, offer code length: %zu\n",
+         strlen(offerCode));
   DisconnectNetwork();
 
   isHost = false;
@@ -292,19 +330,42 @@ void JoinSession(const char *offerCode) {
 
   create_agent();
   if (agent) {
-    // Parse and apply host's offer
-    parse_and_apply_code(offerCode, true);
+    printf("[Network] Agent created for guest\n");
 
-    // Start gathering our candidates
+    // IMPORTANT: Store the offer code to apply AFTER our gathering is done
+    // If we apply it now, libjuice will start connecting and skip our gathering
+    strncpy(storedOfferCode, offerCode, sizeof(storedOfferCode) - 1);
+    storedOfferCode[sizeof(storedOfferCode) - 1] = '\0';
+    hasStoredOfferCode = true;
+    printf("[Network] Offer code stored, will apply after local gathering\n");
+
+    // Start gathering our candidates - offer code will be applied in callback
     networkState = NET_GATHERING;
+    printf("[Network] Starting candidate gathering...\n");
     juice_gather_candidates(agent);
+  } else {
+    printf("[Network] ERROR: Failed to create agent for guest!\n");
+    networkState = NET_FAILED;
   }
 }
 
 void SetAnswerCode(const char *answerCode) {
   if (agent && isHost) {
-    parse_and_apply_code(answerCode, true);
+    parse_and_apply_code(answerCode, true,
+                         true); // true = signal gathering done now
     networkState = NET_CONNECTING;
+  }
+}
+
+void FinalizeGuestConnection(void) {
+  // Called when guest clicks READY after copying their answer code
+  if (agent && !isHost && hasStoredOfferCode) {
+    printf("[Network] Guest clicked READY, applying stored offer code...\n");
+    parse_and_apply_code(storedOfferCode, true, true);
+    hasStoredOfferCode = false;
+    memset(storedOfferCode, 0, sizeof(storedOfferCode));
+    networkState = NET_CONNECTING;
+    printf("[Network] Now connecting to host...\n");
   }
 }
 
