@@ -20,6 +20,7 @@ LIBJUICE_LIB = $(LIBJUICE_DIR)/libjuice.a
 ifeq ($(OS),Windows_NT)
     PLATFORM = WINDOWS
     TARGET := $(TARGET).exe
+    CFLAGS += -DJUICE_STATIC
     LDFLAGS = -lopengl32 -lgdi32 -lwinmm -lws2_32 -lbcrypt -static -lpthread
 else
     UNAME_S := $(shell uname -s)
@@ -33,10 +34,12 @@ else
         ifneq (,$(findstring MINGW,$(UNAME_S)))
             PLATFORM = WINDOWS
             TARGET := $(TARGET).exe
+            CFLAGS += -DJUICE_STATIC
             LDFLAGS = -lopengl32 -lgdi32 -lwinmm -lws2_32 -lbcrypt -static -lpthread
         else ifneq (,$(findstring MSYS,$(UNAME_S)))
             PLATFORM = WINDOWS
             TARGET := $(TARGET).exe
+            CFLAGS += -DJUICE_STATIC
             LDFLAGS = -lopengl32 -lgdi32 -lwinmm -lws2_32 -lbcrypt -static -lpthread
         endif
     endif
