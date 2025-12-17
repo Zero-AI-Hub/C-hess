@@ -21,24 +21,30 @@ ifeq ($(OS),Windows_NT)
     PLATFORM = WINDOWS
     TARGET := $(TARGET).exe
     LDFLAGS = -L./raylib/src -L./libjuice -lraylib -ljuice -lopengl32 -lgdi32 -lwinmm -lws2_32 -lbcrypt -static -lpthread
+    # Windows-specific: need to link ws2_32 for libjuice sockets
+    LIBJUICE_EXTRA = -lws2_32 -lbcrypt
 else
     UNAME_S := $(shell uname -s)
     ifeq ($(UNAME_S),Linux)
         PLATFORM = LINUX
         LDFLAGS = -L./raylib/src -L./libjuice -lraylib -ljuice -lGL -lm -lpthread -ldl -lrt -lX11
+        LIBJUICE_EXTRA =
     else ifeq ($(UNAME_S),Darwin)
         PLATFORM = MACOS
         LDFLAGS = -L./raylib/src -L./libjuice -lraylib -ljuice -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -lpthread
+        LIBJUICE_EXTRA =
     else
         # MSYS2/MinGW reports MINGW64_NT-* or similar
         ifneq (,$(findstring MINGW,$(UNAME_S)))
             PLATFORM = WINDOWS
             TARGET := $(TARGET).exe
             LDFLAGS = -L./raylib/src -L./libjuice -lraylib -ljuice -lopengl32 -lgdi32 -lwinmm -lws2_32 -lbcrypt -static -lpthread
+            LIBJUICE_EXTRA = -lws2_32 -lbcrypt
         else ifneq (,$(findstring MSYS,$(UNAME_S)))
             PLATFORM = WINDOWS
             TARGET := $(TARGET).exe
             LDFLAGS = -L./raylib/src -L./libjuice -lraylib -ljuice -lopengl32 -lgdi32 -lwinmm -lws2_32 -lbcrypt -static -lpthread
+            LIBJUICE_EXTRA = -lws2_32 -lbcrypt
         endif
     endif
 endif
@@ -69,13 +75,28 @@ $(RAYLIB_LIB):
 
 libjuice: $(LIBJUICE_LIB)
 
-$(LIBJUICE_LIB):
+# Build libjuice manually for better cross-platform support
+JUICE_SRCS = $(wildcard $(LIBJUICE_DIR)/src/*.c)
+JUICE_OBJS = $(JUICE_SRCS:.c=.o)
+JUICE_CFLAGS = -O2 -fPIC -fvisibility=hidden -DJUICE_EXPORTS -DUSE_NETTLE=0 -I$(LIBJUICE_DIR)/include/juice
+
+$(LIBJUICE_LIB): $(LIBJUICE_DIR)
+	@if [ ! -f "$(LIBJUICE_LIB)" ]; then \
+		echo "Building libjuice for $(PLATFORM)..."; \
+		for src in $(LIBJUICE_DIR)/src/*.c; do \
+			obj=$${src%.c}.o; \
+			echo "  Compiling $$src..."; \
+			$(CC) $(JUICE_CFLAGS) -c "$$src" -o "$$obj"; \
+		done; \
+		$(AR) rcs $(LIBJUICE_LIB) $(LIBJUICE_DIR)/src/*.o; \
+		echo "libjuice built successfully."; \
+	fi
+
+$(LIBJUICE_DIR):
 	@if [ ! -d "$(LIBJUICE_DIR)" ]; then \
 		echo "Downloading libjuice..."; \
 		git clone --depth 1 https://github.com/paullouisageneau/libjuice.git $(LIBJUICE_DIR); \
 	fi
-	@echo "Building libjuice for $(PLATFORM)..."
-	$(MAKE) -C $(LIBJUICE_DIR)
 
 clean:
 	$(RM) $(TARGET) $(OBJS)
