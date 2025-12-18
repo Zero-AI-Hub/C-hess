@@ -129,40 +129,40 @@ clean-libjuice:
 clean-all: clean clean-raylib clean-libjuice
 
 # Mesa3D software renderer for Windows (when OpenGL drivers are not available)
-# Downloads opengl32.dll from mesa-dist-win GitHub releases
-MESA_VERSION = 24.3.4
-MESA_RELEASE_URL = https://github.com/pal1000/mesa-dist-win/releases/download/$(MESA_VERSION)/mesa3d-$(MESA_VERSION)-release-msvc.7z
+# Uses fdossena.com pre-built Mesa for simplicity
+MESA_DLL_URL_64 = https://downloads.fdossena.com/geth.php?r=mesa64-latest
+MESA_DLL_URL_32 = https://downloads.fdossena.com/geth.php?r=mesa-latest
 
 mesa:
 ifeq ($(PLATFORM),WINDOWS)
-	@echo "Downloading Mesa3D software renderer for Windows..."
+	@echo "Downloading Mesa3D software OpenGL renderer..."
+	@echo "This allows the game to run without GPU drivers."
 	@if command -v curl >/dev/null 2>&1; then \
-		curl -L -o mesa3d.7z $(MESA_RELEASE_URL); \
+		curl -L -o opengl32.dll $(MESA_DLL_URL_64) && echo "Downloaded opengl32.dll successfully!" || \
+		(echo "64-bit download failed, trying 32-bit..." && curl -L -o opengl32.dll $(MESA_DLL_URL_32)); \
 	elif command -v wget >/dev/null 2>&1; then \
-		wget -O mesa3d.7z $(MESA_RELEASE_URL); \
+		wget -O opengl32.dll $(MESA_DLL_URL_64) && echo "Downloaded opengl32.dll successfully!" || \
+		(echo "64-bit download failed, trying 32-bit..." && wget -O opengl32.dll $(MESA_DLL_URL_32)); \
 	else \
-		echo "ERROR: curl or wget required to download Mesa3D"; \
+		echo "ERROR: curl or wget required. Install with: pacman -S curl"; \
 		exit 1; \
 	fi
-	@echo "Extracting opengl32.dll..."
-	@if command -v 7z >/dev/null 2>&1; then \
-		7z e mesa3d.7z x64/opengl32.dll -y; \
-	elif command -v 7za >/dev/null 2>&1; then \
-		7za e mesa3d.7z x64/opengl32.dll -y; \
+	@if [ -f opengl32.dll ]; then \
+		echo ""; \
+		echo "SUCCESS! Mesa3D opengl32.dll is ready."; \
+		echo "Run ./chess.exe to play with software rendering."; \
 	else \
-		echo "ERROR: 7z or 7za required to extract Mesa3D"; \
-		echo "Install with: pacman -S p7zip"; \
-		exit 1; \
+		echo "ERROR: Download failed. Please download manually from:"; \
+		echo "  https://fdossena.com/?p=mesa/index.frag"; \
+		echo "Place opengl32.dll in the same folder as chess.exe"; \
 	fi
-	@rm -f mesa3d.7z
-	@echo "Mesa3D opengl32.dll extracted successfully!"
-	@echo "The game will now use software rendering."
 else
 	@echo "Mesa3D is only needed for Windows. Your platform: $(PLATFORM)"
+	@echo "On Linux, install mesa drivers with your package manager."
 endif
 
 clean-mesa:
-	$(RM) opengl32.dll mesa3d.7z
+	$(RM) opengl32.dll
 
 help:
 	@echo "Chess Game Makefile - Cross-Platform Build System"
@@ -176,6 +176,7 @@ help:
 	@echo "  make clean-libjuice - Remove the libjuice directory"
 	@echo "  make clean-all    - Remove executable, object files, and libraries"
 	@echo "  make mesa         - Download Mesa3D software renderer (Windows only)"
-	@echo "  make clean-mesa   - Remove Mesa3D files"
+	@echo "  make clean-mesa   - Remove Mesa3D opengl32.dll"
 	@echo "  make help         - Show this help message"
+
 
