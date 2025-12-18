@@ -23,6 +23,24 @@
 
 int main(void) {
   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Chess");
+
+  // Check if window was initialized successfully (OpenGL context required)
+  if (!IsWindowReady()) {
+    // Window initialization failed - likely OpenGL driver issue
+    // On Windows, this can happen with missing/broken GPU drivers
+#ifdef _WIN32
+    // Show Windows message box for better UX (console may not be visible)
+    // Note: MessageBox is from windows.h which is included in raylib on Windows
+    TraceLog(LOG_ERROR, "Failed to initialize graphics window!");
+    TraceLog(LOG_ERROR, "Please update your graphics drivers and try again.");
+#else
+    TraceLog(LOG_ERROR, "Failed to initialize graphics window!");
+    TraceLog(LOG_ERROR, "Please ensure OpenGL is available on your system.");
+#endif
+    CloseWindow();
+    return 1;
+  }
+
   SetTargetFPS(60);
   SetExitKey(0); // Disable ESC closing the window
 
