@@ -190,6 +190,15 @@ chess-c/
 - **Command not found**: Make sure MinGW binaries are in your PATH
 - **Build errors**: Use `mingw32-make` instead of `make` in MSYS2 MinGW terminal
 - **Missing DLLs**: Build with static linking (default) or copy required DLLs to the executable directory
+- **OpenGL errors / "The driver does not appear to support OpenGL"**: 
+  Your system lacks hardware OpenGL support. Use Mesa3D software renderer:
+  ```bash
+  # In MSYS2 MinGW terminal:
+  pacman -S p7zip
+  mingw32-make mesa
+  ```
+  This downloads `opengl32.dll` which provides software OpenGL rendering.
+  The game will run slower but will work on any system.
 
 ---
 

@@ -128,6 +128,42 @@ clean-libjuice:
 
 clean-all: clean clean-raylib clean-libjuice
 
+# Mesa3D software renderer for Windows (when OpenGL drivers are not available)
+# Downloads opengl32.dll from mesa-dist-win GitHub releases
+MESA_VERSION = 24.3.4
+MESA_RELEASE_URL = https://github.com/pal1000/mesa-dist-win/releases/download/$(MESA_VERSION)/mesa3d-$(MESA_VERSION)-release-msvc.7z
+
+mesa:
+ifeq ($(PLATFORM),WINDOWS)
+	@echo "Downloading Mesa3D software renderer for Windows..."
+	@if command -v curl >/dev/null 2>&1; then \
+		curl -L -o mesa3d.7z $(MESA_RELEASE_URL); \
+	elif command -v wget >/dev/null 2>&1; then \
+		wget -O mesa3d.7z $(MESA_RELEASE_URL); \
+	else \
+		echo "ERROR: curl or wget required to download Mesa3D"; \
+		exit 1; \
+	fi
+	@echo "Extracting opengl32.dll..."
+	@if command -v 7z >/dev/null 2>&1; then \
+		7z e mesa3d.7z x64/opengl32.dll -y; \
+	elif command -v 7za >/dev/null 2>&1; then \
+		7za e mesa3d.7z x64/opengl32.dll -y; \
+	else \
+		echo "ERROR: 7z or 7za required to extract Mesa3D"; \
+		echo "Install with: pacman -S p7zip"; \
+		exit 1; \
+	fi
+	@rm -f mesa3d.7z
+	@echo "Mesa3D opengl32.dll extracted successfully!"
+	@echo "The game will now use software rendering."
+else
+	@echo "Mesa3D is only needed for Windows. Your platform: $(PLATFORM)"
+endif
+
+clean-mesa:
+	$(RM) opengl32.dll mesa3d.7z
+
 help:
 	@echo "Chess Game Makefile - Cross-Platform Build System"
 	@echo ""
@@ -139,4 +175,7 @@ help:
 	@echo "  make clean-raylib - Remove the raylib directory"
 	@echo "  make clean-libjuice - Remove the libjuice directory"
 	@echo "  make clean-all    - Remove executable, object files, and libraries"
+	@echo "  make mesa         - Download Mesa3D software renderer (Windows only)"
+	@echo "  make clean-mesa   - Remove Mesa3D files"
 	@echo "  make help         - Show this help message"
+
