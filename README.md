@@ -193,19 +193,20 @@ chess-c/
 - **OpenGL errors / "The driver does not appear to support OpenGL"**: 
   Your system lacks hardware OpenGL support. Use Mesa3D software renderer:
   
-  **Option 1: Double-click the batch file (easiest)**
+  **Option 1: Run the batch file** (requires [7-Zip](https://www.7-zip.org/) installed)
   ```
   download_mesa.bat
   ```
   
   **Option 2: In MSYS2 MinGW terminal**
   ```bash
+  pacman -S p7zip   # Install 7-zip if needed
   mingw32-make mesa
   ```
   
   **Option 3: Manual download**
-  1. Go to https://fdossena.com/?p=mesa/index.frag
-  2. Download the 64-bit Mesa3D
+  1. Go to https://github.com/mmozeiko/build-mesa/releases
+  2. Download `mesa-llvmpipe-x64-*.7z`
   3. Extract `opengl32.dll` to the same folder as `chess.exe`
   
   The game will run with software rendering (slower but works everywhere).

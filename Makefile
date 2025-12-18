@@ -129,36 +129,38 @@ clean-libjuice:
 clean-all: clean clean-raylib clean-libjuice
 
 # Mesa3D software renderer for Windows (when OpenGL drivers are not available)
-# Uses fdossena.com pre-built Mesa for simplicity
-MESA_DLL_URL_64 = https://downloads.fdossena.com/geth.php?r=mesa64-latest
-MESA_DLL_URL_32 = https://downloads.fdossena.com/geth.php?r=mesa-latest
+# Downloads from mmozeiko/build-mesa GitHub releases
+MESA_VERSION = 25.3.1
+MESA_URL = https://github.com/mmozeiko/build-mesa/releases/download/$(MESA_VERSION)/mesa-llvmpipe-x64-$(MESA_VERSION).7z
 
 mesa:
 ifeq ($(PLATFORM),WINDOWS)
 	@echo "Downloading Mesa3D software OpenGL renderer..."
 	@echo "This allows the game to run without GPU drivers."
 	@if command -v curl >/dev/null 2>&1; then \
-		curl -L -o opengl32.dll $(MESA_DLL_URL_64) && echo "Downloaded opengl32.dll successfully!" || \
-		(echo "64-bit download failed, trying 32-bit..." && curl -L -o opengl32.dll $(MESA_DLL_URL_32)); \
+		curl -L -o mesa-temp.7z $(MESA_URL); \
 	elif command -v wget >/dev/null 2>&1; then \
-		wget -O opengl32.dll $(MESA_DLL_URL_64) && echo "Downloaded opengl32.dll successfully!" || \
-		(echo "64-bit download failed, trying 32-bit..." && wget -O opengl32.dll $(MESA_DLL_URL_32)); \
+		wget -O mesa-temp.7z $(MESA_URL); \
 	else \
 		echo "ERROR: curl or wget required. Install with: pacman -S curl"; \
 		exit 1; \
 	fi
+	@echo "Extracting opengl32.dll..."
+	@if command -v 7z >/dev/null 2>&1; then \
+		7z e mesa-temp.7z opengl32.dll -y && rm -f mesa-temp.7z; \
+	elif command -v 7za >/dev/null 2>&1; then \
+		7za e mesa-temp.7z opengl32.dll -y && rm -f mesa-temp.7z; \
+	else \
+		echo "ERROR: 7-Zip required. Install with: pacman -S p7zip"; \
+		echo "Then run: make mesa"; \
+		exit 1; \
+	fi
 	@if [ -f opengl32.dll ]; then \
-		echo ""; \
 		echo "SUCCESS! Mesa3D opengl32.dll is ready."; \
 		echo "Run ./chess.exe to play with software rendering."; \
-	else \
-		echo "ERROR: Download failed. Please download manually from:"; \
-		echo "  https://fdossena.com/?p=mesa/index.frag"; \
-		echo "Place opengl32.dll in the same folder as chess.exe"; \
 	fi
 else
 	@echo "Mesa3D is only needed for Windows. Your platform: $(PLATFORM)"
-	@echo "On Linux, install mesa drivers with your package manager."
 endif
 
 clean-mesa:
