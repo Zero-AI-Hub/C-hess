@@ -189,8 +189,8 @@ void DrawUI(void) {
   DrawText(stateText, BOARD_OFFSET_X + MeasureText(turnText, FONT_SIZE_MEDIUM),
            y, FONT_SIZE_MEDIUM, stateColor);
 
-  if (gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE ||
-      gameState == GAME_TIMEOUT) {
+  if ((gameState == GAME_CHECKMATE || gameState == GAME_STALEMATE ||
+       gameState == GAME_TIMEOUT) && !isMultiplayerGame) {
     DrawText("Press R to restart",
              BOARD_OFFSET_X + BOARD_SIZE * TILE_SIZE - 180, y, FONT_SIZE_SMALL,
              GRAY);
@@ -296,7 +296,7 @@ void DrawMoveHistory(void) {
                FONT_SIZE_SMALL, GRAY);
     }
     // Show scroll position
-    char scrollText[32];
+    char scrollText[48];
     snprintf(scrollText, sizeof(scrollText), "%d-%d/%d",
              historyScrollOffset + 1,
              historyScrollOffset + maxVisibleLines > fullMoves
